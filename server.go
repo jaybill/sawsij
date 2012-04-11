@@ -1,51 +1,49 @@
 package sawsij
 
-import(
-	"os"	
-	"log"	
+import (
+	"log"
 	"net/http"
-	
-	"launchpad.net/mgo"	
+	"os"
+
 	"github.com/stathat/jconfig"
+	"launchpad.net/mgo"
 )
 
-var context *Context;
+var context *Context
 
-func makeHandler(fn func(http.ResponseWriter, *http.Request, *Context)) http.HandlerFunc {
+func MakeHandler(fn func(http.ResponseWriter, *http.Request, *Context)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		fn(w, r,context)
+		fn(w, r, context)
 	}
 }
 
-func configure(){	
+func Configure() {
 
-	context =: new(Context)
-	
+	var ctx Context
+	context = &ctx
+
 	if len(os.Args) == 1 {
 		log.Fatal("No configuration file specified.")
 	}
-		
-	configFilename := string(os.Args[1])	
+
+	configFilename := string(os.Args[1])
 	log.Print("Using config file [" + configFilename + "]")
-	
-	c := jconfig.LoadConfig(configFilename)		
+
+	c := jconfig.LoadConfig(configFilename)
 	context.Config = c
-	
+
+	log.Print("Using db host [" + context.Config.GetString("mongo_host") + "]")
 	dbSession, err := mgo.Dial(context.Config.GetString("mongo_host"))
 	if err != nil {
-			panic(err)
+		panic(err)
 	}
 	//defer dbSession.Close()		
-	dbSession.SetMode(mgo.Monotonic, true)	
-	context.DbSession = dbSession	
+	dbSession.SetMode(mgo.Monotonic, true)
+	context.DbSession = dbSession
+
 }
 
-
 func Run() {
-	
-	configure()	
-	http.HandleFunc("/", makeHandler(Handler))
-	
 	log.Print("Listening on port [" + context.Config.GetString("port") + "]")
-	log.Fatal(http.ListenAndServe(":" + context.Config.GetString("port"), nil))
+	log.Fatal(http.ListenAndServe(":"+context.Config.GetString("port"), nil))
 }
