@@ -1,12 +1,12 @@
 package sawsij
 
-import(	
-	/*
+import (
+/*
 	"time"
     "log"
-    */
+*/
 )
 
-type Thing struct{
+type Thing struct {
 	Property string
 }

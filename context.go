@@ -1,11 +1,11 @@
 package sawsij
 
-import(	
-	"launchpad.net/mgo"	
+import (
 	"github.com/stathat/jconfig"
+	"launchpad.net/mgo"
 )
 
-type Context struct{
-	Config 		*jconfig.Config	
-	DbSession	*mgo.Session	
+type Context struct {
+	Config    *jconfig.Config
+	DbSession *mgo.Session
 }
