@@ -6,6 +6,8 @@ import (
 )
 
 type Context struct {
-	Config    *jconfig.Config
-	DbSession *mgo.Session
+	Config      *jconfig.Config
+	DbSession   *mgo.Session
+	BasePath    string
+
 }
