@@ -4,16 +4,47 @@ import (
 	"log"
 	"net/http"
 	"os"
+    "fmt"
+    "strings"
 
 	"github.com/stathat/jconfig"
 	"launchpad.net/mgo"
+    "github.com/hoisie/mustache"
 )
 
-var context *Context
+var context     *Context
 
-func MakeHandler(fn func(http.ResponseWriter, *http.Request, *Context)) http.HandlerFunc {
+func Route(pattern string,fn func(*http.Request, *Context) interface{}) {
+    
+    patternParts := strings.Split(pattern,"/")
+    var templateId string
+
+    for i := 0; i < len(patternParts); i++ {
+		if i > 0{
+		    if patternParts[i] != "" {
+                templateId += patternParts[i] 
+		    } else {
+		        templateId += "index"
+		    }
+		    if(i < len(patternParts) - 1){
+		        templateId += "-"		   
+		    } 
+		}
+	}  
+    http.HandleFunc(pattern, makeHandler(fn,templateId))
+}
+
+func makeHandler(fn func(*http.Request, *Context) interface{},templateId string ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		fn(w, r, context)
+		fromHandler := fn(r, context)
+		
+		layoutId    := "layout"			
+		viewPath            := context.BasePath + "/views"						
+	    templateFilename    := viewPath + "/templates/" + templateId + ".html.ms"	    
+		layoutFilename      := viewPath + "/layouts/" + layoutId + ".html.ms"
+		rendered            := mustache.RenderFileInLayout(templateFilename, layoutFilename, fromHandler)
+		
+		fmt.Fprint(w,rendered)  
 	}
 }
 
@@ -23,23 +54,27 @@ func Configure() {
 	context = &ctx
 
 	if len(os.Args) == 1 {
-		log.Fatal("No configuration file specified.")
+		log.Fatal("No basepath file specified.")
 	}
-
-	configFilename := string(os.Args[1])
+    
+	context.BasePath    = string(os.Args[1]) 
+	configFilename      := context.BasePath + "/etc/config.json"
+	
 	log.Print("Using config file [" + configFilename + "]")
 
 	c := jconfig.LoadConfig(configFilename)
 	context.Config = c
 
 	log.Print("Using db host [" + context.Config.GetString("mongo_host") + "]")
+	
 	dbSession, err := mgo.Dial(context.Config.GetString("mongo_host"))
 	if err != nil {
 		panic(err)
 	}
-	//defer dbSession.Close()		
+			
 	dbSession.SetMode(mgo.Monotonic, true)
 	context.DbSession = dbSession
+	
 
 }
 
