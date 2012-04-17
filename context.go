@@ -1,13 +1,12 @@
 package sawsij
 
 import (
+	"database/sql"
 	"github.com/stathat/jconfig"
-	"launchpad.net/mgo"
 )
 
 type Context struct {
-	Config      *jconfig.Config
-	DbSession   *mgo.Session
-	BasePath    string
-
+	Config   *jconfig.Config
+	Db       *sql.DB
+	BasePath string
 }
