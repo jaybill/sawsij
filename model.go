@@ -12,6 +12,7 @@ import (
 	"log"
 	"reflect"
 	"strings"
+	"fmt"
 )
 
 type Model struct {
@@ -32,25 +33,29 @@ func (m *Model) Insert(data interface{}) {
 	if len(parts) > 0 {
 		tableName = parts[len(parts)-1]
 	}
-	tableName = strings.ToLower(tableName)
-    
-    
-    
+	tableName = MakeDbName(tableName)
+    fieldNames  := []string{}
+    fieldValues := make([]interface{},0)
+    marks       := []string{}
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
-		log.Printf("%d: %s %s = %v\n", i,
-			typeOfT.Field(i).Name, f.Type(), f.Interface())
+		log.Printf("%d: %s %s = %v\n", i,typeOfT.Field(i).Name, f.Type(), f.Interface())
+		if typeOfT.Field(i).Name != "Id" {
+		    fieldNames = append(fieldNames,MakeDbName(typeOfT.Field(i).Name))
+		    fieldValues = append(fieldValues,f.Interface())
+		    marks = append(marks,"?")
+		}
 	}
-
-	query := "INSERT INTO " + tableName + "(title, body, createdon) VALUES ('Five Post', 'Even better than the first', current_timestamp)"
+    
+	query := fmt.Sprintf("INSERT INTO %v(%v) VALUES (%v)",tableName,strings.Join(fieldNames,","),strings.Join(marks,","))
 
 	log.Printf("Query: %q", query)
-
-	result, err := m.Db.Query(query)
+    
+	result, err := m.Db.Exec(query,fieldValues)
 	if err != nil {
 		log.Print(err)
 	} else {
 		log.Printf("Result was %v", result)
 	}
-
+    
 }
