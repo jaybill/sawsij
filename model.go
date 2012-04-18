@@ -94,6 +94,18 @@ func (m *Model) Delete(data interface{}) (err error){
     }
     return
 }
+/*
+func (m *Model) Fetch(data interface{}) (err error){
+    rowInfo     := getRowInfo(data)
+    if rowInfo.Id != -1{
+        query := fmt.Sprintf("SELECT * FROM %v WHERE id=%d",rowInfo.TableName,rowInfo.Id)
+        row := m.Db.QueryRow(query)
+        
+        
+    }
+    return
+}
+*/
 
 type forDb struct{
     Id          interface{}
