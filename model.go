@@ -24,66 +24,108 @@ func (m *Model) Setup(db *sql.DB) {
 	m.Db = db
 }
 
-func (m *Model) Insert(data interface{}) (id int, err error) {
-
-    tableName   := getTableName(data)
-    keys, vals  := keysVals(data)
-    holders     := make([]string,len(keys))
+func (m *Model) Update(data interface{}) (err error) {
     
-    for i := 0; i < len(keys); i++{
+    rowInfo  := getRowInfo(data)
+    holders     := make([]string,len(rowInfo.Keys))
+    
+    for i := 0; i < len(rowInfo.Keys); i++{
+        holders[i] = fmt.Sprintf("%v=$%v",rowInfo.Keys[i],i + 1)
+    }
+    
+    query := fmt.Sprintf("UPDATE %v SET %v WHERE id=%d",rowInfo.TableName,strings.Join(holders,","),rowInfo.Id)
+    log.Printf("Query: %q", query)
+    
+    _, err = m.Db.Exec(query,rowInfo.Vals...)
+	if err != nil {
+		log.Print(err)
+	}
+    	
+    return
+}
+
+func (m *Model) Insert(data interface{}) (err error) {
+
+    rowInfo     := getRowInfo(data)
+    holders     := make([]string,len(rowInfo.Keys))
+    
+    for i := 0; i < len(rowInfo.Keys); i++{
         holders[i] = fmt.Sprintf("$%v",i + 1)
     }
     
-	query := fmt.Sprintf("INSERT INTO %v(%v) VALUES (%v)",tableName,strings.Join(keys,","),strings.Join(holders,","))
+	query := fmt.Sprintf("INSERT INTO %v(%v) VALUES (%v)",rowInfo.TableName,strings.Join(rowInfo.Keys,","),strings.Join(holders,","))
 
 	log.Printf("Query: %q", query)	
-	_, err = m.Db.Exec(query,vals...)
+	_, err = m.Db.Exec(query,rowInfo.Vals...)
 	if err != nil {
 		log.Print(err)
 	} else {
-	    idq := fmt.Sprintf("select currval('%v_id_seq')",tableName)	    
-	    row := m.Db.QueryRow(idq)
-	    if err != nil {
-		    log.Print(err)
-		} else {
-		    
-            err = row.Scan(&id)	
-            if err != nil{
-                log.Print(err)
-            } else {            
-    		    log.Printf("Id was %v", id)
-    		}
+	    if rowInfo.IdIndex != -1 {
+	        idq := fmt.Sprintf("select currval('%v_id_seq')",rowInfo.TableName)	    
+	        row := m.Db.QueryRow(idq)
+	        if err != nil {
+		        log.Print(err)
+		    } else {
+		        var id int64
+                err = row.Scan(&id)
+                if err != nil{
+                    log.Print(err)
+                } else {    
+                    s := reflect.ValueOf(data).Elem()
+                    s.Field(rowInfo.IdIndex).SetInt(id)     
+        		    log.Printf("Id was %v", id)
+        		}
+		    }
 		}
 	}
 	return    
 }
 
-func getTableName(data interface{}) string {
-	s := reflect.ValueOf(data).Elem()
-	typeOfT := s.Type()
-
-	tableName := typeOfT.String()
-	parts := strings.Split(tableName, ".")
-	if len(parts) > 0 {
-		tableName = parts[len(parts)-1]
-	}
-	return MakeDbName(tableName)
+func (m *Model) Delete(data interface{}) (err error){
+    rowInfo     := getRowInfo(data)
+    if rowInfo.Id != -1{
+        query := fmt.Sprintf("DELETE FROM %v WHERE id=%d",rowInfo.TableName,rowInfo.Id)
+        log.Printf("Query: %q", query)
+        
+        _, err = m.Db.Exec(query)
+	    if err != nil {
+		    log.Print(err)
+	    }
+    }
+    return
 }
 
-func keysVals(data interface{}) (keys []string, vals []interface{}){
+type forDb struct{
+    Id          interface{}
+    IdIndex     int
+    Keys        []string
+    Vals        []interface{}
+    TableName   string    
+}
+
+func getRowInfo(data interface{}) (rowInfo forDb){
 	s := reflect.ValueOf(data).Elem()
 	typeOfT := s.Type()
-
-
-    vals = make([]interface{},0)
+    rowInfo.Vals = make([]interface{},0)
+    
+    rowInfo.IdIndex = -1
+    
+    rowInfo.TableName = typeOfT.String()
+	parts := strings.Split(rowInfo.TableName, ".")
+	if len(parts) > 0 {
+		rowInfo.TableName = parts[len(parts)-1]
+	}
+	rowInfo.TableName = MakeDbName(rowInfo.TableName)
     
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
 		log.Printf("%d: %s %s = %v\n", i,typeOfT.Field(i).Name, f.Type(), f.Interface())
 		if typeOfT.Field(i).Name != "Id" {
-		    keys = append(keys,MakeDbName(typeOfT.Field(i).Name))
-		    vals = append(vals,f.Interface())
-		    
+		    rowInfo.Keys = append(rowInfo.Keys,MakeDbName(typeOfT.Field(i).Name))
+		    rowInfo.Vals = append(rowInfo.Vals,f.Interface())		    
+		} else {
+		    rowInfo.Id = f.Interface()
+		    rowInfo.IdIndex = i
 		}
 	}
     return
