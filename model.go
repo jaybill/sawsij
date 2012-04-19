@@ -20,10 +20,6 @@ type Model struct {
 	Db *sql.DB
 }
 
-func (m *Model) Setup(db *sql.DB) {
-	m.Db = db
-}
-
 func (m *Model) Update(data interface{}) (err error) {
     
     rowInfo  := getRowInfo(data)
