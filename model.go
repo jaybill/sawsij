@@ -119,7 +119,41 @@ func (m *Model) Fetch(data interface{}) (err error){
     return
 }
 
-
+func (m *Model) FetchAll(data interface{}, where string, args ...interface{}) (ents []interface{},err error){
+    ents        = make([]interface{},0)
+    rowInfo     := getRowInfo(data)
+        
+    retRow      := reflect.ValueOf(data).Elem()
+    dataType    := retRow.Type()
+    t           := reflect.TypeOf(data).Elem()
+    
+    //log.Println(empty)
+    
+    query := fmt.Sprintf("SELECT %v FROM %v",strings.Join(rowInfo.Keys,","),rowInfo.TableName)
+    if where != ""{
+        query = fmt.Sprintf("%v WHERE %v",query,where)
+    }
+    log.Printf("Query: %q", query)
+    
+    rows,err := m.Db.Query(query,args...)
+    for rows.Next() {
+        ent     := reflect.New(t)
+        cols    := make([]interface{}, 0)
+        for i := 0; i < dataType.NumField(); i++ {            
+            f := ent.Elem().Field(i)
+		    if dataType.Field(i).Name != "Id" {
+		        cols = append(cols, f.Addr().Interface())            
+		    }
+        }   
+        err = rows.Scan(cols...) 
+        
+        ents = append(ents, ent.Interface())
+        if err != nil{
+            log.Print(err)
+        }    
+    }
+    return
+}
 
 type forDb struct{
     Id          interface{}    
@@ -159,7 +193,7 @@ func getRowInfo(data interface{}) (rowInfo forDb){
     
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
-		log.Printf("%d: %s %s = %v\n", i,typeOfT.Field(i).Name, f.Type(), f.Interface())
+		//log.Printf("%d: %s %s = %v\n", i,typeOfT.Field(i).Name, f.Type(), f.Interface())
 		if typeOfT.Field(i).Name != "Id" {
 		    dbName := MakeDbName(typeOfT.Field(i).Name)
 		    rowInfo.Keys = append(rowInfo.Keys,dbName)
