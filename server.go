@@ -16,24 +16,29 @@ import (
 var context *Context
 var parsedTemplate *template.Template
 
-func Route(pattern string, fn func(*http.Request, *Context) interface{}) {
+func Route(pattern string, fn func(*http.Request, *Context,map[string](string)) (map[string](interface{}),error)) {
 
-	patternParts := strings.Split(pattern, "/")
-	var templateId string
-
-	for i := 0; i < len(patternParts); i++ {
+	patternParts := strings.Split(pattern, "/")	
+	maxParts := len(patternParts)
+	log.Printf("Pattern length: %d\tLastIndexOf /:%d",len(pattern) - 1,strings.LastIndex(pattern,"/") )
+	
+	if strings.LastIndex(pattern,"/") == len(pattern) - 1 && len(pattern) > 1{
+	    maxParts = maxParts - 1
+	}
+	
+    templateParts := make([]string,0)
+	for i := 0; i < maxParts; i++ {
 		if i > 0 {
-			if patternParts[i] != "" {
-				templateId += patternParts[i]
-			} else {
-				templateId += "index"
-			}
-			if i < len(patternParts)-1 {
-				templateId += "-"
+			if patternParts[i] != ""{
+				templateParts = append(templateParts,patternParts[i])
+			} else {				
+				templateParts = append(templateParts,"index")				
 			}
 		}
+
 	}
-	http.HandleFunc(pattern, makeHandler(fn, templateId))
+	templateId := strings.Join(templateParts,"-")
+	http.HandleFunc(pattern, makeHandler(fn, templateId,pattern))
 }
 
 func parseTemplates() {
@@ -65,13 +70,34 @@ func parseTemplates() {
 	}
 }
 
-func makeHandler(fn func(*http.Request, *Context) interface{}, templateId string) http.HandlerFunc {
+func makeHandler(fn func(*http.Request, *Context, map[string](string)) (map[string](interface{}),error), templateId string,pattern string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		handlerResults := fn(r, context)
-		templateFilename := templateId + ".html"
-		err := parsedTemplate.ExecuteTemplate(w, templateFilename, handlerResults)
+	
+	    log.Printf("URL path: %v",r.URL.Path)	    
+	    rp := strings.NewReplacer(pattern,"")
+	    restOfUrl := rp.Replace(r.URL.Path)
+   	    log.Printf("URL rest: %v",restOfUrl)
+        urlParams := make(map[string](string))
+   	    if len(restOfUrl) > 0 && strings.Contains(restOfUrl,"/") {
+   	        allUrlParts := strings.Split(restOfUrl,"/")
+   	        log.Printf("URL vars: %v",allUrlParts)
+   	        if len(allUrlParts) % 2 == 0{
+       	        for i := 0; i < len(allUrlParts); i += 2{
+       	            urlParams[allUrlParts[i]] = allUrlParts[i + 1]
+       	        }
+   	        }
+   	    }
+	    log.Printf("URL vars: %v",urlParams)
+		handlerResults,err := fn(r, context,urlParams)
 		if err != nil {
-			log.Print(err)
+		    log.Print(err)
+		    http.Error(w, err.Error(), http.StatusInternalServerError)
+		} else {		
+		    templateFilename := templateId + ".html"
+		    err = parsedTemplate.ExecuteTemplate(w, templateFilename, handlerResults)
+		    if err != nil {
+			    log.Print(err)
+		    }
 		}
 	}
 }
