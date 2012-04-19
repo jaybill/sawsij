@@ -94,25 +94,53 @@ func (m *Model) Delete(data interface{}) (err error){
     }
     return
 }
-/*
+
 func (m *Model) Fetch(data interface{}) (err error){
     rowInfo     := getRowInfo(data)
+    cols        := make([]interface{}, 0)    
+    retRow      := reflect.ValueOf(data).Elem()
+    dataType    := retRow.Type()
     if rowInfo.Id != -1{
-        query := fmt.Sprintf("SELECT * FROM %v WHERE id=%d",rowInfo.TableName,rowInfo.Id)
+        query := fmt.Sprintf("SELECT %v FROM %v WHERE id=%d",strings.Join(rowInfo.Keys,","),rowInfo.TableName,rowInfo.Id)
+        log.Printf("Query: %q", query)
         row := m.Db.QueryRow(query)
         
-        
+        for i := 0; i < dataType.NumField(); i++ {            
+            f := retRow.Field(i)
+		    if dataType.Field(i).Name != "Id" {
+		        cols = append(cols, f.Addr().Interface())            
+		    }
+        }   
+        err = row.Scan(cols...) 
+        if err != nil{
+            log.Print(err)
+        }    
     }
     return
 }
-*/
+
+
 
 type forDb struct{
-    Id          interface{}
-    IdIndex     int
+    Id          interface{}    
+    IdIndex     int    
     Keys        []string
     Vals        []interface{}
     TableName   string    
+}
+
+func getTableName(data interface{}) (tableName string){
+    s := reflect.ValueOf(data).Elem()
+	typeOfT := s.Type()
+
+    tableName = typeOfT.String()
+	parts := strings.Split(tableName, ".")
+	if len(parts) > 0 {
+		tableName = parts[len(parts)-1]
+	}
+	tableName = MakeDbName(tableName)
+
+    return
 }
 
 func getRowInfo(data interface{}) (rowInfo forDb){
@@ -127,13 +155,14 @@ func getRowInfo(data interface{}) (rowInfo forDb){
 	if len(parts) > 0 {
 		rowInfo.TableName = parts[len(parts)-1]
 	}
-	rowInfo.TableName = MakeDbName(rowInfo.TableName)
+	rowInfo.TableName = getTableName(data)
     
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
 		log.Printf("%d: %s %s = %v\n", i,typeOfT.Field(i).Name, f.Type(), f.Interface())
 		if typeOfT.Field(i).Name != "Id" {
-		    rowInfo.Keys = append(rowInfo.Keys,MakeDbName(typeOfT.Field(i).Name))
+		    dbName := MakeDbName(typeOfT.Field(i).Name)
+		    rowInfo.Keys = append(rowInfo.Keys,dbName)
 		    rowInfo.Vals = append(rowInfo.Vals,f.Interface())		    
 		} else {
 		    rowInfo.Id = f.Interface()
