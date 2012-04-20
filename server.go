@@ -1,14 +1,16 @@
 package sawsij
 
 import (
+	"database/sql"
+	"encoding/json"
+	"encoding/xml"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
-
 	"strings"
 	"text/template"
 
-	"database/sql"
 	_ "github.com/bmizerany/pq"
 	"github.com/stathat/jconfig"
 )
@@ -16,29 +18,29 @@ import (
 var context *Context
 var parsedTemplate *template.Template
 
-func Route(pattern string, fn func(*http.Request, *Context,map[string](string)) (map[string](interface{}),error)) {
+func Route(pattern string, fn func(*http.Request, *Context, map[string](string)) (map[string](interface{}), error)) {
 
-	patternParts := strings.Split(pattern, "/")	
+	patternParts := strings.Split(pattern, "/")
 	maxParts := len(patternParts)
-	log.Printf("Pattern length: %d\tLastIndexOf /:%d",len(pattern) - 1,strings.LastIndex(pattern,"/") )
-	
-	if strings.LastIndex(pattern,"/") == len(pattern) - 1 && len(pattern) > 1{
-	    maxParts = maxParts - 1
+	log.Printf("Pattern length: %d\tLastIndexOf /:%d", len(pattern)-1, strings.LastIndex(pattern, "/"))
+
+	if strings.LastIndex(pattern, "/") == len(pattern)-1 && len(pattern) > 1 {
+		maxParts = maxParts - 1
 	}
-	
-    templateParts := make([]string,0)
+
+	templateParts := make([]string, 0)
 	for i := 0; i < maxParts; i++ {
 		if i > 0 {
-			if patternParts[i] != ""{
-				templateParts = append(templateParts,patternParts[i])
-			} else {				
-				templateParts = append(templateParts,"index")				
+			if patternParts[i] != "" {
+				templateParts = append(templateParts, patternParts[i])
+			} else {
+				templateParts = append(templateParts, "index")
 			}
 		}
 
 	}
-	templateId := strings.Join(templateParts,"-")
-	http.HandleFunc(pattern, makeHandler(fn, templateId,pattern))
+	templateId := strings.Join(templateParts, "-")
+	http.HandleFunc(pattern, makeHandler(fn, templateId, pattern))
 }
 
 func parseTemplates() {
@@ -63,41 +65,89 @@ func parseTemplates() {
 	}
 	log.Printf("Templates: %v", templateFiles)
 
-	pt, err := template.ParseFiles(templateFiles...)
+	pt, err := template.New("dummy").Delims("<%", "%>").ParseFiles(templateFiles...)
 	parsedTemplate = pt
 	if err != nil {
 		log.Print(err)
 	}
 }
 
-func makeHandler(fn func(*http.Request, *Context, map[string](string)) (map[string](interface{}),error), templateId string,pattern string) http.HandlerFunc {
+func makeHandler(fn func(*http.Request, *Context, map[string](string)) (map[string](interface{}), error), templateId string, pattern string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-	
-	    log.Printf("URL path: %v",r.URL.Path)	    
-	    rp := strings.NewReplacer(pattern,"")
-	    restOfUrl := rp.Replace(r.URL.Path)
-   	    log.Printf("URL rest: %v",restOfUrl)
-        urlParams := make(map[string](string))
-   	    if len(restOfUrl) > 0 && strings.Contains(restOfUrl,"/") {
-   	        allUrlParts := strings.Split(restOfUrl,"/")
-   	        log.Printf("URL vars: %v",allUrlParts)
-   	        if len(allUrlParts) % 2 == 0{
-       	        for i := 0; i < len(allUrlParts); i += 2{
-       	            urlParams[allUrlParts[i]] = allUrlParts[i + 1]
-       	        }
-   	        }
-   	    }
-	    log.Printf("URL vars: %v",urlParams)
-		handlerResults,err := fn(r, context,urlParams)
+		returnType := string("")
+		restOfUrl := string("")
+		if !context.Config.GetBool("cacheTemplates") {
+			parseTemplates()
+		}
+
+		log.Printf("URL path: %v", r.URL.Path)
+		jp := "/json"
+		if strings.Index(r.URL.Path, jp) == 0 {
+			jrp := strings.NewReplacer(jp, "")
+			restOfUrl = jrp.Replace(r.URL.Path)
+			returnType = "json"
+		}
+
+		xp := "/xml"
+		if strings.Index(r.URL.Path, xp) == 0 {
+			xrp := strings.NewReplacer(xp, "")
+			restOfUrl = xrp.Replace(r.URL.Path)
+			returnType = "xml"
+		}
+
+		rp := strings.NewReplacer(pattern, "")
+		restOfUrl = rp.Replace(r.URL.Path)
+		log.Printf("URL rest: %v", restOfUrl)
+		urlParams := make(map[string](string))
+		if len(restOfUrl) > 0 && strings.Contains(restOfUrl, "/") {
+			allUrlParts := strings.Split(restOfUrl, "/")
+			log.Printf("URL vars: %v", allUrlParts)
+			if len(allUrlParts)%2 == 0 {
+				for i := 0; i < len(allUrlParts); i += 2 {
+					urlParams[allUrlParts[i]] = allUrlParts[i+1]
+				}
+			}
+		}
+		log.Printf("URL vars: %v", urlParams)
+		handlerResults, err := fn(r, context, urlParams)
 		if err != nil {
-		    log.Print(err)
-		    http.Error(w, err.Error(), http.StatusInternalServerError)
-		} else {		
-		    templateFilename := templateId + ".html"
-		    err = parsedTemplate.ExecuteTemplate(w, templateFilename, handlerResults)
-		    if err != nil {
-			    log.Print(err)
-		    }
+			log.Print(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		} else {
+			switch returnType {
+			case "xml":
+				//TODO Return actual XML here
+				w.Header().Set("Content-Type", "text/xml")
+				fmt.Fprintf(w, "%s", xml.Header)
+				log.Print("returning xml")
+				type Response struct {
+					Error string
+				}
+				r := Response{Error: "NOT IMPLEMENTED"}
+				b, err := xml.Marshal(r)
+				if err != nil {
+					log.Print(err)
+				} else {
+					fmt.Fprintf(w, "%s", b)
+				}
+			case "json":
+				w.Header().Set("Content-Type", "application/json")
+
+				log.Print("returning json")
+				b, err := json.Marshal(handlerResults)
+				if err != nil {
+					log.Print(err)
+				} else {
+					fmt.Fprintf(w, "%s", b)
+				}
+			default:
+				templateFilename := templateId + ".html"
+				err = parsedTemplate.ExecuteTemplate(w, templateFilename, handlerResults)
+				if err != nil {
+					log.Print(err)
+				}
+			}
+
 		}
 	}
 }
@@ -140,3 +190,4 @@ func Run() {
 	log.Print("Listening on port [" + context.Config.GetString("port") + "]")
 	log.Fatal(http.ListenAndServe(":"+context.Config.GetString("port"), nil))
 }
+
