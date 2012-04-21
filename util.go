@@ -2,6 +2,7 @@ package sawsij
 
 import (
 	"unicode"
+	"strconv"
 )
 
 func MakeDbName(fieldName string) string {
@@ -18,6 +19,16 @@ func MakeDbName(fieldName string) string {
 
 	}
 	return string(copy)
+}
+
+func GetIntId(strId string) (intId int64){
+    intId, err := strconv.ParseInt(strId, 0, 0)
+    
+    if err != nil{
+        intId = -1
+    }
+    
+    return
 }
 
 func MakeFieldName(dbName string) string {
