@@ -22,7 +22,7 @@ type Model struct {
 
 func (m *Model) Update(data interface{}) (err error) {
 
-	rowInfo := getRowInfo(data)
+	rowInfo := getRowInfo(data,false)
 	holders := make([]string, len(rowInfo.Keys))
 
 	for i := 0; i < len(rowInfo.Keys); i++ {
@@ -42,7 +42,7 @@ func (m *Model) Update(data interface{}) (err error) {
 
 func (m *Model) Insert(data interface{}) (err error) {
 
-	rowInfo := getRowInfo(data)
+	rowInfo := getRowInfo(data,false)
 	holders := make([]string, len(rowInfo.Keys))
 
 	for i := 0; i < len(rowInfo.Keys); i++ {
@@ -78,7 +78,7 @@ func (m *Model) Insert(data interface{}) (err error) {
 }
 
 func (m *Model) Delete(data interface{}) (err error) {
-	rowInfo := getRowInfo(data)
+	rowInfo := getRowInfo(data,false)
 	if rowInfo.Id != -1 {
 		query := fmt.Sprintf("DELETE FROM %v WHERE id=%d", rowInfo.TableName, rowInfo.Id)
 		log.Printf("Query: %q", query)
@@ -92,7 +92,7 @@ func (m *Model) Delete(data interface{}) (err error) {
 }
 
 func (m *Model) Fetch(data interface{}) (err error) {
-	rowInfo := getRowInfo(data)
+	rowInfo := getRowInfo(data,false)
 	cols := make([]interface{}, 0)
 	retRow := reflect.ValueOf(data).Elem()
 	dataType := retRow.Type()
@@ -117,7 +117,7 @@ func (m *Model) Fetch(data interface{}) (err error) {
 
 func (m *Model) FetchAll(data interface{}, where string, args ...interface{}) (ents []interface{}, err error) {
 	ents = make([]interface{}, 0)
-	rowInfo := getRowInfo(data)
+	rowInfo := getRowInfo(data,true)
 
 	retRow := reflect.ValueOf(data).Elem()
 	dataType := retRow.Type()
@@ -136,10 +136,8 @@ func (m *Model) FetchAll(data interface{}, where string, args ...interface{}) (e
 		ent := reflect.New(t)
 		cols := make([]interface{}, 0)
 		for i := 0; i < dataType.NumField(); i++ {
-			f := ent.Elem().Field(i)
-			if dataType.Field(i).Name != "Id" {
-				cols = append(cols, f.Addr().Interface())
-			}
+			f := ent.Elem().Field(i)			
+			cols = append(cols, f.Addr().Interface())			
 		}
 		err = rows.Scan(cols...)
 
@@ -173,7 +171,7 @@ func getTableName(data interface{}) (tableName string) {
 	return
 }
 
-func getRowInfo(data interface{}) (rowInfo forDb) {
+func getRowInfo(data interface{},includeId bool) (rowInfo forDb) {
 	s := reflect.ValueOf(data).Elem()
 	typeOfT := s.Type()
 	rowInfo.Vals = make([]interface{}, 0)
@@ -190,14 +188,17 @@ func getRowInfo(data interface{}) (rowInfo forDb) {
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
 		//log.Printf("%d: %s %s = %v\n", i,typeOfT.Field(i).Name, f.Type(), f.Interface())
-		if typeOfT.Field(i).Name != "Id" {
+		if typeOfT.Field(i).Name != "Id" || includeId {
 			dbName := MakeDbName(typeOfT.Field(i).Name)
 			rowInfo.Keys = append(rowInfo.Keys, dbName)
 			rowInfo.Vals = append(rowInfo.Vals, f.Interface())
-		} else {
+		} 
+		
+		if typeOfT.Field(i).Name == "Id"{
 			rowInfo.Id = f.Interface()
 			rowInfo.IdIndex = i
 		}
+		
 	}
 	return
 }
