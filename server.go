@@ -131,10 +131,27 @@ func makeHandler(fn func(*http.Request, *Context, map[string](string)) (map[stri
 					fmt.Fprintf(w, "%s", b)
 				}
 			case "json":
-				w.Header().Set("Content-Type", "application/json")
-
+				w.Header().Set("Content-Type", "application/json")                
 				log.Print("returning json")
-				b, err := json.Marshal(handlerResults)
+
+                var iToRender interface{}                            
+                if len(handlerResults) == 1{
+                
+      				var keystring string
+    
+                	for key, value := range handlerResults {
+	                    if _, ok := value.(interface{}); ok {
+		                    keystring = key
+	                    }
+                    }
+    	            log.Printf("handler returned single value array. returning value of %q", keystring)
+                    
+                    iToRender = handlerResults[keystring]
+                } else {
+                    iToRender = handlerResults
+                }				
+                
+				b, err := json.Marshal(iToRender)
 				if err != nil {
 					log.Print(err)
 				} else {
