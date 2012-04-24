@@ -50,3 +50,6 @@ func MakeFieldName(dbName string) string {
 	return string(copy)
 }
 
+func GetUrlParams(urlPart string) u
+
+
