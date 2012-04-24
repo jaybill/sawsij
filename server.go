@@ -74,6 +74,7 @@ func parseTemplates() {
 
 func makeHandler(fn func(*http.Request, *Context, map[string](string)) (map[string](interface{}), error), templateId string, pattern string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+	    log.Printf("Request method from handler: %q",r.Method)
 		returnType := string("")
 		restOfUrl := string("")
 		if !context.Config.GetBool("cacheTemplates") {
@@ -203,7 +204,13 @@ func Configure() {
 
 }
 
+func Test(w http.ResponseWriter, r *http.Request){
+    fmt.Fprintf(w, "%s", r)
+}
+
 func Run() {
+
+    http.HandleFunc("/test", Test )
 	log.Print("Listening on port [" + context.Config.GetString("port") + "]")
 	log.Fatal(http.ListenAndServe(":"+context.Config.GetString("port"), nil))
 }
