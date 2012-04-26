@@ -81,40 +81,16 @@ func Route(pattern string, fn func(*http.Request, *Context, map[string](string))
 func makeHandler(fn func(*http.Request, *Context, map[string](string)) (map[string](interface{}), error), templateId string, pattern string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 	    log.Printf("Request method from handler: %q",r.Method) // Always "GET" no matter what???
-		returnType := string("")
-		restOfUrl := string("")
+		
+		
 		if !context.Config.GetBool("cacheTemplates") {
 			parseTemplates()
 		}
 
 		log.Printf("URL path: %v", r.URL.Path)
-		jp := "/json"
-		if strings.Index(r.URL.Path, jp) == 0 {
-			jrp := strings.NewReplacer(jp, "")
-			restOfUrl = jrp.Replace(r.URL.Path)
-			returnType = "json"
-		}
+        returnType,restOfUrl := GetReturnType(r.URL.Path)
 
-		xp := "/xml"
-		if strings.Index(r.URL.Path, xp) == 0 {
-			xrp := strings.NewReplacer(xp, "")
-			restOfUrl = xrp.Replace(r.URL.Path)
-			returnType = "xml"
-		}
-
-		rp := strings.NewReplacer(pattern, "")
-		restOfUrl = rp.Replace(r.URL.Path)
-		log.Printf("URL rest: %v", restOfUrl)
-		urlParams := make(map[string](string))
-		if len(restOfUrl) > 0 && strings.Contains(restOfUrl, "/") {
-			allUrlParts := strings.Split(restOfUrl, "/")
-			log.Printf("URL vars: %v", allUrlParts)
-			if len(allUrlParts)%2 == 0 {
-				for i := 0; i < len(allUrlParts); i += 2 {
-					urlParams[allUrlParts[i]] = allUrlParts[i+1]
-				}
-			}
-		}
+        urlParams := GetUrlParams(pattern,restOfUrl)
 		log.Printf("URL vars: %v", urlParams)
 		handlerResults, err := fn(r, context, urlParams)
 		if err != nil {
@@ -122,7 +98,7 @@ func makeHandler(fn func(*http.Request, *Context, map[string](string)) (map[stri
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
 			switch returnType {
-			case "xml":
+			case RT_XML:
 				//TODO Return actual XML here
 				w.Header().Set("Content-Type", "text/xml")
 				fmt.Fprintf(w, "%s", xml.Header)
@@ -130,14 +106,14 @@ func makeHandler(fn func(*http.Request, *Context, map[string](string)) (map[stri
 				type Response struct {
 					Error string
 				}
-				r := Response{Error: "NOT IMPLEMENTED"}
+				r := Response{Error: "NOT YET IMPLEMENTED"}
 				b, err := xml.Marshal(r)
 				if err != nil {
 					log.Print(err)
 				} else {
 					fmt.Fprintf(w, "%s", b)
 				}
-			case "json":
+			case RT_JSON:
 				w.Header().Set("Content-Type", "application/json")                
 				log.Print("returning json")
 
@@ -213,6 +189,6 @@ func Configure() {
 
 func Run() {  
 	log.Print("Listening on port [" + context.Config.GetString("port") + "]")
-	log.Fatal(http.ListenAndServe(":"+context.Config.GetString("port"), nil))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v",context.Config.GetString("port")), nil))
 }
 
