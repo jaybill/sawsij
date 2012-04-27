@@ -115,7 +115,14 @@ func (m *Model) Fetch(data interface{}) (err error) {
 	return
 }
 
-func (m *Model) FetchAll(data interface{}, where string, args ...interface{}) (ents []interface{}, err error) {
+type Query struct{
+    Where string
+    Order string
+    Limit int
+    Offset int    
+}
+
+func (m *Model) FetchAll(data interface{}, q Query, args ...interface{}) (ents []interface{}, err error) {
 	ents = make([]interface{}, 0)
 	rowInfo := getRowInfo(data,true)
 
@@ -126,25 +133,34 @@ func (m *Model) FetchAll(data interface{}, where string, args ...interface{}) (e
 	//log.Println(empty)
 
 	query := fmt.Sprintf("SELECT %v FROM %v", strings.Join(rowInfo.Keys, ","), rowInfo.TableName)
-	if where != "" {
-		query = fmt.Sprintf("%v WHERE %v", query, where)
+	if q.Where != "" {
+		query = fmt.Sprintf("%v WHERE %v", query, q.Where)
 	}
+	
+	if q.Order != "" {
+		query = fmt.Sprintf("%v ORDER BY %v", query, q.Order)
+	}
+	
 	log.Printf("Query: %q", query)
 
 	rows, err := m.Db.Query(query, args...)
-	for rows.Next() {
-		ent := reflect.New(t)
-		cols := make([]interface{}, 0)
-		for i := 0; i < dataType.NumField(); i++ {
-			f := ent.Elem().Field(i)			
-			cols = append(cols, f.Addr().Interface())			
-		}
-		err = rows.Scan(cols...)
+	if err == nil{
+	    for rows.Next() {
+		    ent := reflect.New(t)
+		    cols := make([]interface{}, 0)
+		    for i := 0; i < dataType.NumField(); i++ {
+			    f := ent.Elem().Field(i)			
+			    cols = append(cols, f.Addr().Interface())			
+		    }
+		    err = rows.Scan(cols...)
 
-		ents = append(ents, ent.Interface())
-		if err != nil {
-			log.Print(err)
-		}
+		    ents = append(ents, ent.Interface())
+		    if err != nil {
+			    log.Print(err)
+		    }
+	    }
+	} else {
+	    log.Print(err)
 	}
 	return
 }

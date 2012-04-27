@@ -80,7 +80,7 @@ func Route(pattern string, fn func(*http.Request, *Context, map[string](string))
 
 func makeHandler(fn func(*http.Request, *Context, map[string](string)) (map[string](interface{}), error), templateId string, pattern string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-	    log.Printf("Request method from handler: %q",r.Method) // Always "GET" no matter what???
+	    log.Printf("Request method from handler: %q",r.Method) 
 		
 		
 		if !context.Config.GetBool("cacheTemplates") {
