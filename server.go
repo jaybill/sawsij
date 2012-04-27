@@ -2,7 +2,7 @@ package sawsij
 
 import (
 	"database/sql"
-    "encoding/json"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"log"
@@ -46,7 +46,7 @@ func parseTemplates() {
 	}
 	log.Printf("Templates: %v", templateFiles)
 
-	pt, err := template.New("dummy").Delims("<%", "%>").ParseFiles(templateFiles...)
+	pt, err := template.New("dummy").Delims("<%", "%>").Funcs(GetFuncMap()).ParseFiles(templateFiles...)
 	parsedTemplate = pt
 	if err != nil {
 		log.Print(err)
@@ -80,17 +80,16 @@ func Route(pattern string, fn func(*http.Request, *Context, map[string](string))
 
 func makeHandler(fn func(*http.Request, *Context, map[string](string)) (map[string](interface{}), error), templateId string, pattern string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-	    log.Printf("Request method from handler: %q",r.Method) 
-		
-		
+		log.Printf("Request method from handler: %q", r.Method)
+
 		if !context.Config.GetBool("cacheTemplates") {
 			parseTemplates()
 		}
 
 		log.Printf("URL path: %v", r.URL.Path)
-        returnType,restOfUrl := GetReturnType(r.URL.Path)
+		returnType, restOfUrl := GetReturnType(r.URL.Path)
 
-        urlParams := GetUrlParams(pattern,restOfUrl)
+		urlParams := GetUrlParams(pattern, restOfUrl)
 		log.Printf("URL vars: %v", urlParams)
 		handlerResults, err := fn(r, context, urlParams)
 		if err != nil {
@@ -114,26 +113,26 @@ func makeHandler(fn func(*http.Request, *Context, map[string](string)) (map[stri
 					fmt.Fprintf(w, "%s", b)
 				}
 			case RT_JSON:
-				w.Header().Set("Content-Type", "application/json")                
+				w.Header().Set("Content-Type", "application/json")
 				log.Print("returning json")
 
-                var iToRender interface{}                            
-                if len(handlerResults) == 1{
-                
-      				var keystring string
-    
-                	for key, value := range handlerResults {
-	                    if _, ok := value.(interface{}); ok {
-		                    keystring = key
-	                    }
-                    }
-    	            log.Printf("handler returned single value array. returning value of %q", keystring)
-                    
-                    iToRender = handlerResults[keystring]
-                } else {
-                    iToRender = handlerResults
-                }				
-                
+				var iToRender interface{}
+				if len(handlerResults) == 1 {
+
+					var keystring string
+
+					for key, value := range handlerResults {
+						if _, ok := value.(interface{}); ok {
+							keystring = key
+						}
+					}
+					log.Printf("handler returned single value array. returning value of %q", keystring)
+
+					iToRender = handlerResults[keystring]
+				} else {
+					iToRender = handlerResults
+				}
+
 				b, err := json.Marshal(iToRender)
 				if err != nil {
 					log.Print(err)
@@ -153,7 +152,7 @@ func makeHandler(fn func(*http.Request, *Context, map[string](string)) (map[stri
 }
 
 func staticHandler(w http.ResponseWriter, r *http.Request) {
-	log.Printf("Serving static resource %q - method: %q", r.URL.Path,r.Method)
+	log.Printf("Serving static resource %q - method: %q", r.URL.Path, r.Method)
 	http.ServeFile(w, r, context.BasePath+r.URL.Path)
 }
 
@@ -186,9 +185,8 @@ func Configure() {
 
 }
 
-
-func Run() {  
+func Run() {
 	log.Print("Listening on port [" + context.Config.GetString("port") + "]")
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v",context.Config.GetString("port")), nil))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", context.Config.GetString("port")), nil))
 }
 
