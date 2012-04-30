@@ -4,13 +4,18 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
-	//"log"
+	"log"
+)
+// Return type constants, used in the switch for determining what format the response will be returned in.
+const(
+RT_HTML = 0  // return HTML
+RT_XML = 1   // return XML
+RT_JSON = 2  // return JSON
 )
 
-const RT_HTML = 0
-const RT_XML = 1
-const RT_JSON = 2
-
+// MakeDbName converts a struct field name into a database field name. 
+// The string will be converted to lowercase, and any capital letters after the first one will be prepended with an underscore.
+// "FirstName" will become "first_name" and so on.
 func MakeDbName(fieldName string) string {
 	runes := []rune(fieldName)
 	copy := []rune{}
@@ -26,7 +31,7 @@ func MakeDbName(fieldName string) string {
 	}
 	return string(copy)
 }
-
+// GetIntId is a utility function for convertion a string into an int64. Useful for URL params.
 func GetIntId(strId string) (intId int64) {
 	intId, err := strconv.ParseInt(strId, 0, 0)
 
@@ -37,6 +42,9 @@ func GetIntId(strId string) (intId int64) {
 	return
 }
 
+// MakeDbName converts a database column name into a struct field name. 
+// The first letter will be made capital, and underscores will be removed and the following letter made capital.
+// "first_name" will become "FirstName", etc.
 func MakeFieldName(dbName string) string {
 
 	runes := []rune(dbName)
@@ -55,7 +63,7 @@ func MakeFieldName(dbName string) string {
 	}
 	return string(copy)
 }
-
+// GetUrlParams removes the string specified in "pattern" and returns key value pairs as a map of strings.
 func GetUrlParams(pattern string, urlPath string) (urlParams map[string]string) {
 	rp := strings.NewReplacer(pattern, "")
 	restOfUrl := rp.Replace(urlPath)
@@ -73,6 +81,7 @@ func GetUrlParams(pattern string, urlPath string) (urlParams map[string]string) 
 	return
 }
 
+// GetReturnType takes a pattern and determines the type of response being requested. Currently, "/json" is the only one implemented.
 func GetReturnType(url string) (rt int, restOfUrl string) {
 	jp := "/json"
 	if strings.Index(url, jp) == 0 {
@@ -96,3 +105,29 @@ func GetReturnType(url string) (rt int, restOfUrl string) {
 	return
 }
 
+// GetTemplateName takes a URL pattern and returns a template Id as a string.
+func GetTemplateName(pattern string) (templateId string){
+
+	patternParts := strings.Split(pattern, "/")
+	maxParts := len(patternParts)
+	log.Printf("Pattern length: %d\tLastIndexOf /:%d", len(pattern)-1, strings.LastIndex(pattern, "/"))
+
+	if strings.LastIndex(pattern, "/") == len(pattern)-1 && len(pattern) > 1 {
+		maxParts = maxParts - 1
+	}
+
+	templateParts := make([]string, 0)
+	for i := 0; i < maxParts; i++ {
+		if i > 0 {
+			if patternParts[i] != "" {
+				templateParts = append(templateParts, patternParts[i])
+			} else {
+				templateParts = append(templateParts, "index")
+			}
+		}
+
+	}
+	templateId = strings.Join(templateParts, "-")
+
+    return 
+}
