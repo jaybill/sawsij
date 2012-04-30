@@ -1,3 +1,4 @@
+// Package sawsij provides a small, opinionated web framework.
 package sawsij
 
 import (
@@ -15,6 +16,11 @@ import (
 	"github.com/stathat/jconfig"
 )
 
+const(
+    R_GUEST = 0 // defines GUEST role, so it's always available.
+)
+// A Context is passed along to a request handler and stores application configuration, the handle to the database and any derived information, like the base path. 
+// This will probably be supplanted soon by something better.
 type Context struct {
 	Config   *jconfig.Config
 	Db       *sql.DB
@@ -53,33 +59,36 @@ func parseTemplates() {
 	}
 }
 
-func Route(pattern string, fn func(*http.Request, *Context, map[string](string)) (map[string](interface{}), error)) {
-
-	patternParts := strings.Split(pattern, "/")
-	maxParts := len(patternParts)
-	log.Printf("Pattern length: %d\tLastIndexOf /:%d", len(pattern)-1, strings.LastIndex(pattern, "/"))
-
-	if strings.LastIndex(pattern, "/") == len(pattern)-1 && len(pattern) > 1 {
-		maxParts = maxParts - 1
-	}
-
-	templateParts := make([]string, 0)
-	for i := 0; i < maxParts; i++ {
-		if i > 0 {
-			if patternParts[i] != "" {
-				templateParts = append(templateParts, patternParts[i])
-			} else {
-				templateParts = append(templateParts, "index")
-			}
-		}
-
-	}
-	templateId := strings.Join(templateParts, "-")
-	http.HandleFunc(pattern, makeHandler(fn, templateId, pattern))
+// RouteConfig is what is supplied to the Route() function to set up a route. More about how this is used in the documentation for the Route function.
+type RouteConfig struct{
+    Pattern string
+    Handler func(*http.Request, *Context, map[string](string)) (map[string](interface{}), error)
+    Roles   []int    
 }
 
-func makeHandler(fn func(*http.Request, *Context, map[string](string)) (map[string](interface{}), error), templateId string, pattern string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+// Route takes route config and sets up a handler. This is the primary means by which applications interact with the framework.
+// Handler functions must accept a pointer to an http.Request, a pointer to a Context and a map of strings with a string key, which will contain the URL
+// params.
+// URL params are defined as anything after the pattern that can be split into pairs. So, for example, if your pattern was "/admin/" and the actual URL
+// was "/admin/id/14/display/1", the URL param map your handler function gets would be:
+// "id" = "14"
+// "display" = "1"
+// 
+// Note that these are strings, so you'll need to convert them to whatever types you need. If you just need an Int id, there's a useful utility function, 
+// sawsij.GetIntId()
+// 
+// If you start a pattern with "/json", whatever you return will be marshalled into JSON instead of being passed through to a template. Same goes for "/xml" though 
+// this isn't implemented yet.
+//
+// The template filename to be used is based on the pattern, with slashes being converted to dashes. So "/admin" looks for "[app_root_dir]/templates/admin.html" 
+// and "/posts/list" will look for "[app_root_dir]/templates/posts-list.html". The pattern "/" will look for "[app_root_dir]/index.html".
+//
+// You generally call Route() once per pattern after you've called Configure() and before you call Run().
+func Route(rcfg RouteConfig){
+
+    templateId := GetTemplateName(rcfg.Pattern)
+
+	fn := func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Request method from handler: %q", r.Method)
 
 		if !context.Config.GetBool("cacheTemplates") {
@@ -89,9 +98,15 @@ func makeHandler(fn func(*http.Request, *Context, map[string](string)) (map[stri
 		log.Printf("URL path: %v", r.URL.Path)
 		returnType, restOfUrl := GetReturnType(r.URL.Path)
 
-		urlParams := GetUrlParams(pattern, restOfUrl)
+		urlParams := GetUrlParams(rcfg.Pattern, restOfUrl)
 		log.Printf("URL vars: %v", urlParams)
-		handlerResults, err := fn(r, context, urlParams)
+		handlerResults, err := rcfg.Handler(r, context, urlParams)
+		/*
+		if pattern != "/login" {
+		    http.Redirect(w, r, "/login", http.StatusFound)
+		}
+		*/
+		
 		if err != nil {
 			log.Print(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -149,13 +164,18 @@ func makeHandler(fn func(*http.Request, *Context, map[string](string)) (map[stri
 
 		}
 	}
+	
+	http.HandleFunc(rcfg.Pattern, fn)
 }
 
 func staticHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Serving static resource %q - method: %q", r.URL.Path, r.Method)
 	http.ServeFile(w, r, context.BasePath+r.URL.Path)
 }
-
+// Configure gets the application base path from a command line argument. 
+// It then reads the config file at [app_root_dir]/etc/config.json (This will probably be changed to YAML at some point.) 
+// It then attempts to grab a handle to the database, which it sticks into the context.
+// Configure is the first thing your application will call in its "main" method.
 func Configure() {
 
 	var ctx Context
@@ -185,6 +205,8 @@ func Configure() {
 
 }
 
+// Run will start a web server on the port specified in the config file, using the configuration in the config file and the routes specified by any Route() calls
+// that have been previously made. This is generally the last line of your application's "main" method.
 func Run() {
 	log.Print("Listening on port [" + context.Config.GetString("port") + "]")
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", context.Config.GetString("port")), nil))
