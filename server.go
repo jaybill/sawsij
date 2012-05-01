@@ -16,9 +16,10 @@ import (
 	"github.com/stathat/jconfig"
 )
 
-const(
-    R_GUEST = 0 // defines GUEST role, so it's always available.
+const (
+	R_GUEST = 0 // defines GUEST role, so it's always available.
 )
+
 // A Context is passed along to a request handler and stores application configuration, the handle to the database and any derived information, like the base path. 
 // This will probably be supplanted soon by something better.
 type Context struct {
@@ -59,11 +60,23 @@ func parseTemplates() {
 	}
 }
 
+// HandlerResponse is a struct that your handler functions return. It contains all the data needed to generate the response. If Redirect is set, 
+// the contents of View is ignored.
+type HandlerResponse struct {
+	View     map[string](interface{})
+	Redirect string
+}
+
+// Init sets up an empty map for the handler response.
+func (h *HandlerResponse) Init() {
+	h.View = make(map[string]interface{})
+}
+
 // RouteConfig is what is supplied to the Route() function to set up a route. More about how this is used in the documentation for the Route function.
-type RouteConfig struct{
-    Pattern string
-    Handler func(*http.Request, *Context, map[string](string)) (map[string](interface{}), error)
-    Roles   []int    
+type RouteConfig struct {
+	Pattern string
+	Handler func(*http.Request, *Context, map[string](string)) (HandlerResponse, error)
+	Roles   []int
 }
 
 // Route takes route config and sets up a handler. This is the primary means by which applications interact with the framework.
@@ -84,9 +97,9 @@ type RouteConfig struct{
 // and "/posts/list" will look for "[app_root_dir]/templates/posts-list.html". The pattern "/" will look for "[app_root_dir]/index.html".
 //
 // You generally call Route() once per pattern after you've called Configure() and before you call Run().
-func Route(rcfg RouteConfig){
+func Route(rcfg RouteConfig) {
 
-    templateId := GetTemplateName(rcfg.Pattern)
+	templateId := GetTemplateName(rcfg.Pattern)
 
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Request method from handler: %q", r.Method)
@@ -101,70 +114,70 @@ func Route(rcfg RouteConfig){
 		urlParams := GetUrlParams(rcfg.Pattern, restOfUrl)
 		log.Printf("URL vars: %v", urlParams)
 		handlerResults, err := rcfg.Handler(r, context, urlParams)
-		/*
-		if pattern != "/login" {
-		    http.Redirect(w, r, "/login", http.StatusFound)
-		}
-		*/
-		
-		if err != nil {
-			log.Print(err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+
+		if handlerResults.Redirect != "" {
+			http.Redirect(w, r, handlerResults.Redirect, http.StatusFound)
 		} else {
-			switch returnType {
-			case RT_XML:
-				//TODO Return actual XML here
-				w.Header().Set("Content-Type", "text/xml")
-				fmt.Fprintf(w, "%s", xml.Header)
-				log.Print("returning xml")
-				type Response struct {
-					Error string
-				}
-				r := Response{Error: "NOT YET IMPLEMENTED"}
-				b, err := xml.Marshal(r)
-				if err != nil {
-					log.Print(err)
-				} else {
-					fmt.Fprintf(w, "%s", b)
-				}
-			case RT_JSON:
-				w.Header().Set("Content-Type", "application/json")
-				log.Print("returning json")
 
-				var iToRender interface{}
-				if len(handlerResults) == 1 {
-
-					var keystring string
-
-					for key, value := range handlerResults {
-						if _, ok := value.(interface{}); ok {
-							keystring = key
-						}
+			if err != nil {
+				log.Print(err)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			} else {
+				switch returnType {
+				case RT_XML:
+					//TODO Return actual XML here
+					w.Header().Set("Content-Type", "text/xml")
+					fmt.Fprintf(w, "%s", xml.Header)
+					log.Print("returning xml")
+					type Response struct {
+						Error string
 					}
-					log.Printf("handler returned single value array. returning value of %q", keystring)
+					r := Response{Error: "NOT YET IMPLEMENTED"}
+					b, err := xml.Marshal(r)
+					if err != nil {
+						log.Print(err)
+					} else {
+						fmt.Fprintf(w, "%s", b)
+					}
+				case RT_JSON:
+					w.Header().Set("Content-Type", "application/json")
+					log.Print("returning json")
 
-					iToRender = handlerResults[keystring]
-				} else {
-					iToRender = handlerResults
-				}
+					var iToRender interface{}
+					if len(handlerResults.View) == 1 {
 
-				b, err := json.Marshal(iToRender)
-				if err != nil {
-					log.Print(err)
-				} else {
-					fmt.Fprintf(w, "%s", b)
-				}
-			default:
-				templateFilename := templateId + ".html"
-				err = parsedTemplate.ExecuteTemplate(w, templateFilename, handlerResults)
-				if err != nil {
-					log.Print(err)
+						var keystring string
+
+						for key, value := range handlerResults.View {
+							if _, ok := value.(interface{}); ok {
+								keystring = key
+							}
+						}
+						log.Printf("handler returned single value array. returning value of %q", keystring)
+
+						iToRender = handlerResults.View[keystring]
+					} else {
+						iToRender = handlerResults.View
+					}
+
+					b, err := json.Marshal(iToRender)
+					if err != nil {
+						log.Print(err)
+					} else {
+						fmt.Fprintf(w, "%s", b)
+					}
+				default:
+					templateFilename := templateId + ".html"
+					err = parsedTemplate.ExecuteTemplate(w, templateFilename, handlerResults.View)
+					if err != nil {
+						log.Print(err)
+					}
 				}
 			}
 
 		}
 	}
-	
+
 	http.HandleFunc(rcfg.Pattern, fn)
 }
 
@@ -172,6 +185,7 @@ func staticHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Serving static resource %q - method: %q", r.URL.Path, r.Method)
 	http.ServeFile(w, r, context.BasePath+r.URL.Path)
 }
+
 // Configure gets the application base path from a command line argument. 
 // It then reads the config file at [app_root_dir]/etc/config.json (This will probably be changed to YAML at some point.) 
 // It then attempts to grab a handle to the database, which it sticks into the context.
