@@ -13,17 +13,17 @@ import (
 	"text/template"
 
 	_ "github.com/bmizerany/pq"
-	"github.com/stathat/jconfig"
+    "github.com/kylelemons/go-gypsy/yaml"
 )
 
 const (
 	R_GUEST = 0 // defines GUEST role, so it's always available.
 )
 
-// A Context is passed along to a request handler and stores application configuration, the handle to the database and any derived information, like the base path. 
+// A Context is passed along to a request handler and stores application configuration, the handle to the database and any derived information, like the base path.
 // This will probably be supplanted soon by something better.
 type Context struct {
-	Config   *jconfig.Config
+	Config   *yaml.File
 	Db       *sql.DB
 	BasePath string
 }
@@ -60,7 +60,7 @@ func parseTemplates() {
 	}
 }
 
-// HandlerResponse is a struct that your handler functions return. It contains all the data needed to generate the response. If Redirect is set, 
+// HandlerResponse is a struct that your handler functions return. It contains all the data needed to generate the response. If Redirect is set,
 // the contents of View is ignored.
 type HandlerResponse struct {
 	View     map[string](interface{})
@@ -86,14 +86,14 @@ type RouteConfig struct {
 // was "/admin/id/14/display/1", the URL param map your handler function gets would be:
 // "id" = "14"
 // "display" = "1"
-// 
-// Note that these are strings, so you'll need to convert them to whatever types you need. If you just need an Int id, there's a useful utility function, 
+//
+// Note that these are strings, so you'll need to convert them to whatever types you need. If you just need an Int id, there's a useful utility function,
 // sawsij.GetIntId()
-// 
-// If you start a pattern with "/json", whatever you return will be marshalled into JSON instead of being passed through to a template. Same goes for "/xml" though 
+//
+// If you start a pattern with "/json", whatever you return will be marshalled into JSON instead of being passed through to a template. Same goes for "/xml" though
 // this isn't implemented yet.
 //
-// The template filename to be used is based on the pattern, with slashes being converted to dashes. So "/admin" looks for "[app_root_dir]/templates/admin.html" 
+// The template filename to be used is based on the pattern, with slashes being converted to dashes. So "/admin" looks for "[app_root_dir]/templates/admin.html"
 // and "/posts/list" will look for "[app_root_dir]/templates/posts-list.html". The pattern "/" will look for "[app_root_dir]/index.html".
 //
 // You generally call Route() once per pattern after you've called Configure() and before you call Run().
@@ -104,8 +104,13 @@ func Route(rcfg RouteConfig) {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Request method from handler: %q", r.Method)
 
-		if !context.Config.GetBool("cacheTemplates") {
-			parseTemplates()
+        cacheTemplates,err := context.Config.Get("server.cacheTemplates")
+		if err != nil{
+			log.Print(err)
+		} else {
+		    if(cacheTemplates != "true"){
+    		    parseTemplates()
+		    }
 		}
 
 		log.Printf("URL path: %v", r.URL.Path)
@@ -186,8 +191,8 @@ func staticHandler(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, context.BasePath+r.URL.Path)
 }
 
-// Configure gets the application base path from a command line argument. 
-// It then reads the config file at [app_root_dir]/etc/config.json (This will probably be changed to YAML at some point.) 
+// Configure gets the application base path from a command line argument.
+// It then reads the config file at [app_root_dir]/etc/config.json (This will probably be changed to YAML at some point.)
 // It then attempts to grab a handle to the database, which it sticks into the context.
 // Configure is the first thing your application will call in its "main" method.
 func Configure() {
@@ -200,14 +205,26 @@ func Configure() {
 	}
 
 	context.BasePath = string(os.Args[1])
-	configFilename := context.BasePath + "/etc/config.json"
+	configFilename := context.BasePath + "/etc/config.yaml"
 
 	log.Print("Using config file [" + configFilename + "]")
 
-	c := jconfig.LoadConfig(configFilename)
+	c,err := yaml.ReadFile(configFilename)
+	if err != nil {
+		log.Fatal(err)
+	}
 	context.Config = c
 
-	db, err := sql.Open("postgres", context.Config.GetString("dbConnect"))
+    driver, err := c.Get("database.driver")
+    if err != nil {
+		log.Fatal(err)
+	}
+    connect, err := c.Get("database.connect")
+    if err != nil {
+		log.Fatal(err)
+	}
+	
+	db, err := sql.Open(driver, connect)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -222,7 +239,12 @@ func Configure() {
 // Run will start a web server on the port specified in the config file, using the configuration in the config file and the routes specified by any Route() calls
 // that have been previously made. This is generally the last line of your application's "main" method.
 func Run() {
-	log.Print("Listening on port [" + context.Config.GetString("port") + "]")
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", context.Config.GetString("port")), nil))
+
+    port, err := context.Config.Get("server.port")
+    if err != nil {
+		log.Fatal(err)
+	}
+	log.Print("Listening on port [" + port + "]")
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", port), nil))
 }
 
