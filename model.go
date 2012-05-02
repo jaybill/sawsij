@@ -1,9 +1,3 @@
-/*
-Make sure the user's default schema is set
-ALTER USER jayblog SET search_path to 'jayblog'
-
-*/
-
 package sawsij
 
 import (
@@ -48,7 +42,7 @@ func (m *Model) Update(data interface{}) (err error) {
 		holders[i] = fmt.Sprintf("%v=$%v", rowInfo.Keys[i], i+1)
 	}
 
-	query := fmt.Sprintf("UPDATE %v SET %v WHERE id=%d", rowInfo.TableName, strings.Join(holders, ","), rowInfo.Id)
+	query := fmt.Sprintf("UPDATE %q SET %v WHERE id=%d", rowInfo.TableName, strings.Join(holders, ","), rowInfo.Id)
 	log.Printf("Query: %q", query)
 
 	_, err = m.Db.Exec(query, rowInfo.Vals...)
@@ -71,7 +65,7 @@ func (m *Model) Insert(data interface{}) (err error) {
 		holders[i] = fmt.Sprintf("$%v", i+1)
 	}
 
-	query := fmt.Sprintf("INSERT INTO %v(%v) VALUES (%v)", rowInfo.TableName, strings.Join(rowInfo.Keys, ","), strings.Join(holders, ","))
+	query := fmt.Sprintf("INSERT INTO %q(%v) VALUES (%v)", rowInfo.TableName, strings.Join(rowInfo.Keys, ","), strings.Join(holders, ","))
 
 	log.Printf("Query: %q", query)
 	_, err = m.Db.Exec(query, rowInfo.Vals...)
@@ -103,7 +97,7 @@ func (m *Model) Insert(data interface{}) (err error) {
 func (m *Model) Delete(data interface{}) (err error) {
 	rowInfo := getRowInfo(data,false)
 	if rowInfo.Id != -1 {
-		query := fmt.Sprintf("DELETE FROM %v WHERE id=%d", rowInfo.TableName, rowInfo.Id)
+		query := fmt.Sprintf("DELETE FROM %q WHERE id=%d", rowInfo.TableName, rowInfo.Id)
 		log.Printf("Query: %q", query)
 
 		_, err = m.Db.Exec(query)
@@ -121,7 +115,7 @@ func (m *Model) Fetch(data interface{}) (err error) {
 	retRow := reflect.ValueOf(data).Elem()
 	dataType := retRow.Type()
 	if rowInfo.Id != -1 {
-		query := fmt.Sprintf("SELECT %v FROM %v WHERE id=%d", strings.Join(rowInfo.Keys, ","), rowInfo.TableName, rowInfo.Id)
+		query := fmt.Sprintf("SELECT %v FROM %q WHERE id=%d", strings.Join(rowInfo.Keys, ","), rowInfo.TableName, rowInfo.Id)
 		log.Printf("Query: %q", query)
 		row := m.Db.QueryRow(query)
 
@@ -158,7 +152,7 @@ func (m *Model) FetchAll(data interface{}, q Query, args ...interface{}) (ents [
 
 	//log.Println(empty)
 
-	query := fmt.Sprintf("SELECT %v FROM %v", strings.Join(rowInfo.Keys, ","), rowInfo.TableName)
+	query := fmt.Sprintf("SELECT %v FROM %q", strings.Join(rowInfo.Keys, ","), rowInfo.TableName)
 	if q.Where != "" {
 		query = fmt.Sprintf("%v WHERE %v", query, q.Where)
 	}
