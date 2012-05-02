@@ -2,18 +2,18 @@
 package sawsij
 
 import (
+	"code.google.com/p/gorilla/sessions"
 	"database/sql"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	_ "github.com/bmizerany/pq"
+	"github.com/kylelemons/go-gypsy/yaml"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 	"text/template"
-
-	_ "github.com/bmizerany/pq"
-    "github.com/kylelemons/go-gypsy/yaml"
 )
 
 const (
@@ -23,9 +23,10 @@ const (
 // A Context is passed along to a request handler and stores application configuration, the handle to the database and any derived information, like the base path.
 // This will probably be supplanted soon by something better.
 type Context struct {
-	Config   *yaml.File
-	Db       *sql.DB
-	BasePath string
+	Config      *yaml.File
+	Db          *sql.DB
+	BasePath    string
+	CookieStore *sessions.CookieStore
 }
 
 var context *Context
@@ -104,13 +105,13 @@ func Route(rcfg RouteConfig) {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Request method from handler: %q", r.Method)
 
-        cacheTemplates,err := context.Config.Get("server.cacheTemplates")
-		if err != nil{
+		cacheTemplates, err := context.Config.Get("server.cacheTemplates")
+		if err != nil {
 			log.Print(err)
 		} else {
-		    if(cacheTemplates != "true"){
-    		    parseTemplates()
-		    }
+			if cacheTemplates != "true" {
+				parseTemplates()
+			}
 		}
 
 		log.Printf("URL path: %v", r.URL.Path)
@@ -209,39 +210,46 @@ func Configure() {
 
 	log.Print("Using config file [" + configFilename + "]")
 
-	c,err := yaml.ReadFile(configFilename)
+	c, err := yaml.ReadFile(configFilename)
 	if err != nil {
 		log.Fatal(err)
 	}
 	context.Config = c
 
-    driver, err := c.Get("database.driver")
-    if err != nil {
+	driver, err := c.Get("database.driver")
+	if err != nil {
 		log.Fatal(err)
 	}
-    connect, err := c.Get("database.connect")
-    if err != nil {
+	connect, err := c.Get("database.connect")
+	if err != nil {
 		log.Fatal(err)
 	}
-	
+
 	db, err := sql.Open(driver, connect)
 	if err != nil {
 		log.Fatal(err)
 	}
-	parseTemplates()
+
+	key, err := c.Get("encryption.key")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	context.CookieStore = sessions.NewCookieStore([]byte(key))
 
 	context.Db = db
 	log.Print("Static dir is [" + context.BasePath + "/static" + "]")
 	http.HandleFunc("/static/", staticHandler)
 
+	parseTemplates()
 }
 
 // Run will start a web server on the port specified in the config file, using the configuration in the config file and the routes specified by any Route() calls
 // that have been previously made. This is generally the last line of your application's "main" method.
 func Run() {
 
-    port, err := context.Config.Get("server.port")
-    if err != nil {
+	port, err := context.Config.Get("server.port")
+	if err != nil {
 		log.Fatal(err)
 	}
 	log.Print("Listening on port [" + port + "]")
