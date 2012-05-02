@@ -20,20 +20,25 @@ const (
 	R_GUEST = 0 // defines GUEST role, so it's always available.
 )
 
-// A Context is passed along to a request handler and stores application configuration, the handle to the database and any derived information, like the base path.
+// A AppScope is passed along to a request handler and stores application configuration, the handle to the database and any derived information, like the base path.
 // This will probably be supplanted soon by something better.
-type Context struct {
-	Config      *yaml.File
-	Db          *sql.DB
-	BasePath    string
-	CookieStore *sessions.CookieStore
+type AppScope struct {
+	Config   *yaml.File
+	Db       *sql.DB
+	BasePath string
 }
 
-var context *Context
+type RequestScope struct {
+	Session   *sessions.Session
+	UrlParams map[string]string
+}
+
+var store *sessions.CookieStore
+var appScope *AppScope
 var parsedTemplate *template.Template
 
 func parseTemplates() {
-	viewPath := context.BasePath + "/templates"
+	viewPath := appScope.BasePath + "/templates"
 	templateDir, err := os.Open(viewPath)
 	if err != nil {
 		log.Print(err)
@@ -76,13 +81,14 @@ func (h *HandlerResponse) Init() {
 // RouteConfig is what is supplied to the Route() function to set up a route. More about how this is used in the documentation for the Route function.
 type RouteConfig struct {
 	Pattern string
-	Handler func(*http.Request, *Context, map[string](string)) (HandlerResponse, error)
+	Handler func(*http.Request, *AppScope, *RequestScope) (HandlerResponse, error)
 	Roles   []int
 }
 
 // Route takes route config and sets up a handler. This is the primary means by which applications interact with the framework.
-// Handler functions must accept a pointer to an http.Request, a pointer to a Context and a map of strings with a string key, which will contain the URL
+// Handler functions must accept a pointer to an http.Request, a pointer to a AppScope and a map of strings with a string key, which will contain the URL
 // params.
+// The RequestScope struct contains a map of url params and a session struct.
 // URL params are defined as anything after the pattern that can be split into pairs. So, for example, if your pattern was "/admin/" and the actual URL
 // was "/admin/id/14/display/1", the URL param map your handler function gets would be:
 // "id" = "14"
@@ -105,7 +111,7 @@ func Route(rcfg RouteConfig) {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Request method from handler: %q", r.Method)
 
-		cacheTemplates, err := context.Config.Get("server.cacheTemplates")
+		cacheTemplates, err := appScope.Config.Get("server.cacheTemplates")
 		if err != nil {
 			log.Print(err)
 		} else {
@@ -119,7 +125,13 @@ func Route(rcfg RouteConfig) {
 
 		urlParams := GetUrlParams(rcfg.Pattern, restOfUrl)
 		log.Printf("URL vars: %v", urlParams)
-		handlerResults, err := rcfg.Handler(r, context, urlParams)
+        global := make(map[string]string)
+		session, _ := store.Get(r, "session")
+
+		reqScope := RequestScope{UrlParams: urlParams, Session: session}
+
+		handlerResults, err := rcfg.Handler(r, appScope, &reqScope)
+		reqScope.Session.Save(r, w)
 
 		if handlerResults.Redirect != "" {
 			http.Redirect(w, r, handlerResults.Redirect, http.StatusFound)
@@ -174,6 +186,8 @@ func Route(rcfg RouteConfig) {
 					}
 				default:
 					templateFilename := templateId + ".html"
+					// Add "global" template variables
+					handlerResults.View["global"] = global
 					err = parsedTemplate.ExecuteTemplate(w, templateFilename, handlerResults.View)
 					if err != nil {
 						log.Print(err)
@@ -189,24 +203,24 @@ func Route(rcfg RouteConfig) {
 
 func staticHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Serving static resource %q - method: %q", r.URL.Path, r.Method)
-	http.ServeFile(w, r, context.BasePath+r.URL.Path)
+	http.ServeFile(w, r, appScope.BasePath+r.URL.Path)
 }
 
 // Configure gets the application base path from a command line argument.
 // It then reads the config file at [app_root_dir]/etc/config.json (This will probably be changed to YAML at some point.)
-// It then attempts to grab a handle to the database, which it sticks into the context.
+// It then attempts to grab a handle to the database, which it sticks into the appScope.
 // Configure is the first thing your application will call in its "main" method.
 func Configure() {
 
-	var ctx Context
-	context = &ctx
+	var a AppScope
+	appScope = &a
 
 	if len(os.Args) == 1 {
 		log.Fatal("No basepath file specified.")
 	}
 
-	context.BasePath = string(os.Args[1])
-	configFilename := context.BasePath + "/etc/config.yaml"
+	appScope.BasePath = string(os.Args[1])
+	configFilename := appScope.BasePath + "/etc/config.yaml"
 
 	log.Print("Using config file [" + configFilename + "]")
 
@@ -214,7 +228,7 @@ func Configure() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	context.Config = c
+	appScope.Config = c
 
 	driver, err := c.Get("database.driver")
 	if err != nil {
@@ -235,10 +249,10 @@ func Configure() {
 		log.Fatal(err)
 	}
 
-	context.CookieStore = sessions.NewCookieStore([]byte(key))
+	store = sessions.NewCookieStore([]byte(key))
 
-	context.Db = db
-	log.Print("Static dir is [" + context.BasePath + "/static" + "]")
+	appScope.Db = db
+	log.Print("Static dir is [" + appScope.BasePath + "/static" + "]")
 	http.HandleFunc("/static/", staticHandler)
 
 	parseTemplates()
@@ -248,7 +262,7 @@ func Configure() {
 // that have been previously made. This is generally the last line of your application's "main" method.
 func Run() {
 
-	port, err := context.Config.Get("server.port")
+	port, err := appScope.Config.Get("server.port")
 	if err != nil {
 		log.Fatal(err)
 	}
