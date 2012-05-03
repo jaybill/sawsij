@@ -135,3 +135,16 @@ func GetTemplateName(pattern string) (templateId string) {
 	return
 }
 
+func InArray(needle int,haystack []int)(ret bool){
+    ret = false
+    
+    for i := 0; i < len(haystack); i++ {
+        if needle == haystack[i]{
+            ret = true
+            break
+        }
+    }    
+    
+    return
+}
+
