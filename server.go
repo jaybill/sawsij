@@ -17,8 +17,15 @@ import (
 )
 
 const (
-	R_GUEST = 0 // defines GUEST role, so it's always available.
+	R_GUEST = 0
 )
+
+type IUser interface {
+	SetPassword(password string, salt string)
+	TestPassword(password string, salt string) (valid bool)
+	GetRole() int64
+	ClearPasswordHash()
+}
 
 // A AppScope is passed along to a request handler and stores application configuration, the handle to the database and any derived information, like the base path.
 // This will probably be supplanted soon by something better.
@@ -26,11 +33,18 @@ type AppScope struct {
 	Config   *yaml.File
 	Db       *sql.DB
 	BasePath string
+	Setup    *AppSetup
 }
 
+// A RequestScope is sent to handler functions and contains session and derived URL information.
 type RequestScope struct {
 	Session   *sessions.Session
 	UrlParams map[string]string
+}
+
+// AppSetup is used by Configure() to set app configuration variables.
+type AppSetup struct {
+	User IUser
 }
 
 var store *sessions.CookieStore
@@ -125,7 +139,7 @@ func Route(rcfg RouteConfig) {
 
 		urlParams := GetUrlParams(rcfg.Pattern, restOfUrl)
 		log.Printf("URL vars: %v", urlParams)
-        global := make(map[string]string)
+		global := make(map[string]string)
 		session, _ := store.Get(r, "session")
 
 		reqScope := RequestScope{UrlParams: urlParams, Session: session}
@@ -210,9 +224,9 @@ func staticHandler(w http.ResponseWriter, r *http.Request) {
 // It then reads the config file at [app_root_dir]/etc/config.json (This will probably be changed to YAML at some point.)
 // It then attempts to grab a handle to the database, which it sticks into the appScope.
 // Configure is the first thing your application will call in its "main" method.
-func Configure() {
+func Configure(as *AppSetup) {
 
-	var a AppScope
+	a := AppScope{Setup: as}
 	appScope = &a
 
 	if len(os.Args) == 1 {

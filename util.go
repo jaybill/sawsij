@@ -1,16 +1,17 @@
 package sawsij
 
 import (
+	"log"
 	"strconv"
 	"strings"
 	"unicode"
-	"log"
 )
+
 // Return type constants, used in the switch for determining what format the response will be returned in.
-const(
-RT_HTML = 0  // return HTML
-RT_XML = 1   // return XML
-RT_JSON = 2  // return JSON
+const (
+	RT_HTML = 0 // return HTML
+	RT_XML  = 1 // return XML
+	RT_JSON = 2 // return JSON
 )
 
 // MakeDbName converts a struct field name into a database field name. 
@@ -31,6 +32,7 @@ func MakeDbName(fieldName string) string {
 	}
 	return string(copy)
 }
+
 // GetIntId is a utility function for convertion a string into an int64. Useful for URL params.
 func GetIntId(strId string) (intId int64) {
 	intId, err := strconv.ParseInt(strId, 0, 0)
@@ -63,6 +65,7 @@ func MakeFieldName(dbName string) string {
 	}
 	return string(copy)
 }
+
 // GetUrlParams removes the string specified in "pattern" and returns key value pairs as a map of strings.
 func GetUrlParams(pattern string, urlPath string) (urlParams map[string]string) {
 	rp := strings.NewReplacer(pattern, "")
@@ -106,7 +109,7 @@ func GetReturnType(url string) (rt int, restOfUrl string) {
 }
 
 // GetTemplateName takes a URL pattern and returns a template Id as a string.
-func GetTemplateName(pattern string) (templateId string){
+func GetTemplateName(pattern string) (templateId string) {
 
 	patternParts := strings.Split(pattern, "/")
 	maxParts := len(patternParts)
@@ -129,5 +132,6 @@ func GetTemplateName(pattern string) (templateId string){
 	}
 	templateId = strings.Join(templateParts, "-")
 
-    return 
+	return
 }
+
