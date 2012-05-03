@@ -14,21 +14,15 @@ import (
 	"os"
 	"strings"
 	"text/template"
+	"encoding/base64"
 )
 
 const (
 	R_GUEST = 0
 )
 
-type IUser interface {
-	SetPassword(password string, salt string)
-	TestPassword(password string, salt string) (valid bool)
-	GetRole() int64
-	ClearPasswordHash()
-}
-
-// A AppScope is passed along to a request handler and stores application configuration, the handle to the database and any derived information, like the base path.
-// This will probably be supplanted soon by something better.
+// An AppScope is passed along to a request handler and stores application configuration, the handle to the database and any derived information, 
+// like the base path.
 type AppScope struct {
 	Config   *yaml.File
 	Db       *sql.DB
@@ -42,9 +36,15 @@ type RequestScope struct {
 	UrlParams map[string]string
 }
 
+type User interface{
+    TestPassword(password string, a *AppScope) bool
+    GetRole()int64
+    ClearPasswordHash()
+}
+
 // AppSetup is used by Configure() to set app configuration variables.
 type AppSetup struct {
-	User IUser
+	GetUser func(username string, a *AppScope)User
 }
 
 var store *sessions.CookieStore
@@ -141,11 +141,30 @@ func Route(rcfg RouteConfig) {
 		log.Printf("URL vars: %v", urlParams)
 		global := make(map[string]string)
 		session, _ := store.Get(r, "session")
+        role := R_GUEST // Set to guest by default
+        su := session.Values["user"]
+        if su != nil {
+           u := su.(User)
+           role = int(u.GetRole())
+        }
+        var handlerResults HandlerResponse
+        if !InArray(role,rcfg.Roles) {
+            // This user does not have the right role
+            if su == nil{
+                // User isn't logged in, send to login page, passing along desired destination
+                dest := base64.URLEncoding.EncodeToString([]byte(rcfg.Pattern))
+                handlerResults.Redirect = fmt.Sprintf("/login/dest/%v",dest)
+            } else {
+                // The user IS logged in, they're just not permitted to go here
+            }                
+        } else {
+            // Everything is ok. Proceed normally.
+            reqScope := RequestScope{UrlParams: urlParams, Session: session}
+	    	handlerResults, err = rcfg.Handler(r, appScope, &reqScope)
+    		reqScope.Session.Save(r, w)
+        }
+        
 
-		reqScope := RequestScope{UrlParams: urlParams, Session: session}
-
-		handlerResults, err := rcfg.Handler(r, appScope, &reqScope)
-		reqScope.Session.Save(r, w)
 
 		if handlerResults.Redirect != "" {
 			http.Redirect(w, r, handlerResults.Redirect, http.StatusFound)
