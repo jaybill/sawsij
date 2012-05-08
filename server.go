@@ -154,6 +154,7 @@ func Route(rcfg RouteConfig) {
 		log.Printf("pattern: %v roles that can see this: %v user role: %v",rcfg.Pattern,rcfg.Roles,role)
 		
 		var handlerResults HandlerResponse
+		handlerResults.Init()
 		if !InArray(role, rcfg.Roles) {
 			// This user does not have the right role
 			if su == nil {
@@ -163,6 +164,7 @@ func Route(rcfg RouteConfig) {
 			} else {
 				// The user IS logged in, they're just not permitted to go here
 				handlerResults.Redirect = "/denied"
+				 
 			}
 		} else {
 			// Everything is ok. Proceed normally.
