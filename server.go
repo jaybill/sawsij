@@ -154,7 +154,7 @@ func Route(rcfg RouteConfig) {
 		log.Printf("pattern: %v roles that can see this: %v user role: %v",rcfg.Pattern,rcfg.Roles,role)
 		
 		var handlerResults HandlerResponse
-		handlerResults.Init()
+		
 		if !InArray(role, rcfg.Roles) {
 			// This user does not have the right role
 			if su == nil {
@@ -164,7 +164,7 @@ func Route(rcfg RouteConfig) {
 			} else {
 				// The user IS logged in, they're just not permitted to go here
 				handlerResults.Redirect = "/denied"
-				 
+				handlerResults.Init() 
 			}
 		} else {
 			// Everything is ok. Proceed normally.
@@ -229,7 +229,7 @@ func Route(rcfg RouteConfig) {
 				default:
 					templateFilename := templateId + ".html"
 					// Add "global" template variables
-					if len(global) > 0{
+					if len(global) > 0 && handlerResults.View != nil{
 					    handlerResults.View["global"] = global
 					}
 					err = parsedTemplate.ExecuteTemplate(w, templateFilename, handlerResults.View)
