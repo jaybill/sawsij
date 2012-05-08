@@ -79,4 +79,3 @@ func LogoutHandler(r *http.Request, a *AppScope, rs *RequestScope) (h HandlerRes
 	h.Redirect = "/"
 	return
 }
-

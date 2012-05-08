@@ -143,6 +143,7 @@ func Route(rcfg RouteConfig) {
 		session, _ := store.Get(r, "session")
 		role := R_GUEST // Set to guest by default
 		su := session.Values["user"]
+		
 		log.Printf("User: %+v",su)
 		log.Printf("Session vals: %+v",session.Values)
 		if su != nil {
@@ -166,6 +167,8 @@ func Route(rcfg RouteConfig) {
 		} else {
 			// Everything is ok. Proceed normally.
 			reqScope := RequestScope{UrlParams: urlParams, Session: session}
+			global["user"] = session.Values["user"]
+		    // Call the supplied handler function and get the results back.
 			handlerResults, err = rcfg.Handler(r, appScope, &reqScope)
 			reqScope.Session.Save(r, w)
 		}
