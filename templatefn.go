@@ -1,11 +1,13 @@
 package sawsij
 
 import (
-	"fmt"
+	//"fmt"
 	"github.com/russross/blackfriday"
 	"text/template"
 	"time"
+	"reflect"
 )
+
 // MarkDown parses a string in MarkDown format and returns HTML. Used primarly by the template parser as "markdown"
 func MarkDown(raw string) (output string) {
 	input := []byte(raw)
@@ -15,7 +17,7 @@ func MarkDown(raw string) (output string) {
 }
 // DateFormat takes a time and a layout string and returns a string with the formatted date. Used primarily by the template parser as "dateformat"
 func DateFormat(t time.Time, layout string) (datestring string) {
-	datestring = fmt.Sprintf("%q", t)
+	datestring = t.Format(layout)
 	return
 }
 

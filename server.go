@@ -181,7 +181,7 @@ func Route(rcfg RouteConfig) {
 
 			if err != nil {
 				log.Print(err)
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				http.Error(w, "An error occured. See log for details.", http.StatusInternalServerError)
 			} else {
 				switch returnType {
 				case RT_XML:
