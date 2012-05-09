@@ -5,7 +5,7 @@ import (
 	"github.com/russross/blackfriday"
 	"text/template"
 	"time"
-	"reflect"
+
 )
 
 // MarkDown parses a string in MarkDown format and returns HTML. Used primarly by the template parser as "markdown"
