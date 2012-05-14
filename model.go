@@ -68,6 +68,7 @@ func (m *Model) Insert(data interface{}) (err error) {
 	query := fmt.Sprintf("INSERT INTO %q(%v) VALUES (%v)", rowInfo.TableName, strings.Join(rowInfo.Keys, ","), strings.Join(holders, ","))
 
 	log.Printf("Query: %q", query)
+	log.Printf("Data: %+v",data)
 	_, err = m.Db.Exec(query, rowInfo.Vals...)
 	if err != nil {
 		log.Print(err)
@@ -132,11 +133,16 @@ func (m *Model) Fetch(data interface{}) (err error) {
 	}
 	return
 }
-// The Query type is used to construct a SQL query. Note that the Limit and Offset fields are currently ignored.
+// The Query type is used to construct a SQL query. You should always use MakeDbName() to get column names, as this will 
+// ensure cross-RDBMS compatibility later on.
 type Query struct{
+    // A where clause, such as fmt.Sprintf("%v = 'Third Post'", MakeDbName("Title"))
     Where string
+    // An order clause, such as fmt.Sprintf("%v DESC", MakeDbName("CreatedOn"))
     Order string
+    // A number of records to limit the results to
     Limit int
+    // The number of rows to offset the returned results by
     Offset int    
 }
 
@@ -148,9 +154,7 @@ func (m *Model) FetchAll(data interface{}, q Query, args ...interface{}) (ents [
 
 	retRow := reflect.ValueOf(data).Elem()
 	dataType := retRow.Type()
-	t := reflect.TypeOf(data).Elem()
-
-	//log.Println(empty)
+	t := reflect.TypeOf(data).Elem()	
 
 	query := fmt.Sprintf("SELECT %v FROM %q", strings.Join(rowInfo.Keys, ","), rowInfo.TableName)
 	if q.Where != "" {
@@ -160,6 +164,15 @@ func (m *Model) FetchAll(data interface{}, q Query, args ...interface{}) (ents [
 	if q.Order != "" {
 		query = fmt.Sprintf("%v ORDER BY %v", query, q.Order)
 	}
+	
+	if q.Limit != 0 {
+		query = fmt.Sprintf("%v LIMIT %v", query, q.Limit)
+	}
+	
+	if q.Offset != 0 {
+	    query = fmt.Sprintf("%v OFFSET %v", query, q.Offset)
+	}
+	
 	
 	log.Printf("Query: %q", query)
 
@@ -223,7 +236,7 @@ func getRowInfo(data interface{},includeId bool) (rowInfo forDb) {
 
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
-		//log.Printf("%d: %s %s = %v\n", i,typeOfT.Field(i).Name, f.Type(), f.Interface())
+		
 		if typeOfT.Field(i).Name != "Id" || includeId {
 			dbName := MakeDbName(typeOfT.Field(i).Name)
 			rowInfo.Keys = append(rowInfo.Keys, dbName)

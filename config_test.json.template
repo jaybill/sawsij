@@ -1,4 +1,0 @@
-{ 
-    "port": "8077",
-    "dbConnect" : "user=jayblog_test password=test dbname=jayblog_test sslmode=disable"
-}

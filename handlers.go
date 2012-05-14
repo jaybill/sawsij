@@ -6,6 +6,9 @@ import (
 	"net/http"
 )
 
+// LoginHandler can be used by applications as a handler for authentication. It uses the GetUser() function you supply to
+// in AppSetup and the TestPassword() function implemented in the User type. If the login credentials are valid, the handler
+// will place the user data in the session, calling ClearPasswordHash() before it does so.
 func LoginHandler(r *http.Request, a *AppScope, rs *RequestScope) (h HandlerResponse, err error) {
 	h.Init()
     var dest string
@@ -69,10 +72,13 @@ func LoginHandler(r *http.Request, a *AppScope, rs *RequestScope) (h HandlerResp
 	return
 }
 
+// A handler that you can use for the pattern "/denied", which is where requests will be sent when the user 
+// attempts to go to a page they do not have the right role for.
 func DeniedHandler(r *http.Request, a *AppScope, rs *RequestScope) (h HandlerResponse, err error) {    
     return
 }
 
+// A handler that can be used for clearing the session, logging the user out. No template is required.
 func LogoutHandler(r *http.Request, a *AppScope, rs *RequestScope) (h HandlerResponse, err error) {
 	h.Init()
 	rs.Session.Values = nil

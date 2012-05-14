@@ -8,14 +8,14 @@ import (
 
 )
 
-// MarkDown parses a string in MarkDown format and returns HTML. Used primarly by the template parser as "markdown"
+// MarkDown parses a string in MarkDown format and returns HTML. Used by the template parser as "markdown"
 func MarkDown(raw string) (output string) {
 	input := []byte(raw)
 	bOutput := blackfriday.MarkdownCommon(input)
 	output = string(bOutput)
 	return
 }
-// DateFormat takes a time and a layout string and returns a string with the formatted date. Used primarily by the template parser as "dateformat"
+// DateFormat takes a time and a layout string and returns a string with the formatted date. Used by the template parser as "dateformat"
 func DateFormat(t time.Time, layout string) (datestring string) {
 	datestring = t.Format(layout)
 	return
@@ -27,6 +27,4 @@ func GetFuncMap() (fnm template.FuncMap) {
 	fnm["dateformat"] = DateFormat
 	fnm["markdown"] = MarkDown
 	return
-
 }
-

@@ -36,13 +36,22 @@ type RequestScope struct {
 	UrlParams map[string]string
 }
 
+// The User interface describes the methods that the framework needs to interact with a user for the purposes of auth and session management. 
+// Sawsij does not describe its own user struct, that's up to the application.
 type User interface {
+	// How the framework determines if the user has supplied the correct password
 	TestPassword(password string, a *AppScope) bool
+	// How the framework determines what role the user has. Currently only has one role. 
 	GetRole() int64
+	// If you're storing a password hash in your user object, implement ClearPasswordHash() so that it blanks that. 
+	// Otherwise the hash will get stored in the session cookie, which is no good.
 	ClearPasswordHash()
 }
 
-// AppSetup is used by Configure() to set app configuration variables.
+// AppSetup is used by Configure() to set up callback functions that your application implements to extend the framework
+// functionality. It servese as the basis of the "plugin" system. The only exception is GetUser(), which your app must implement
+// for the framework to function. The GetUser function supplies a type conforming to the User specification. It's used for auth and 
+// session mangement.
 type AppSetup struct {
 	GetUser func(username string, a *AppScope) User
 }
@@ -81,13 +90,15 @@ func parseTemplates() {
 }
 
 // HandlerResponse is a struct that your handler functions return. It contains all the data needed to generate the response. If Redirect is set,
-// the contents of View is ignored.
+// the contents of View is ignored. 
+// Note: If you only supply one entry in your View map, the *contents* of the map will be passed to the view rather than the whole map. This is done 
+// to simplify templates and JSON responses with only one entry.
 type HandlerResponse struct {
 	View     map[string](interface{})
 	Redirect string
 }
 
-// Init sets up an empty map for the handler response.
+// Init sets up an empty map for the handler response. Generally the first thing you'll call in your handler function.
 func (h *HandlerResponse) Init() {
 	h.View = make(map[string]interface{})
 }
@@ -143,18 +154,18 @@ func Route(rcfg RouteConfig) {
 		session, _ := store.Get(r, "session")
 		role := R_GUEST // Set to guest by default
 		su := session.Values["user"]
-		
-		log.Printf("User: %+v",su)
-		log.Printf("Session vals: %+v",session.Values)
+
+		log.Printf("User: %+v", su)
+		log.Printf("Session vals: %+v", session.Values)
 		if su != nil {
 			u := su.(User)
 			role = int(u.GetRole())
 		}
-		
-		log.Printf("pattern: %v roles that can see this: %v user role: %v",rcfg.Pattern,rcfg.Roles,role)
-		
+
+		log.Printf("pattern: %v roles that can see this: %v user role: %v", rcfg.Pattern, rcfg.Roles, role)
+
 		var handlerResults HandlerResponse
-		
+
 		if !InArray(role, rcfg.Roles) {
 			// This user does not have the right role
 			if su == nil {
@@ -164,13 +175,13 @@ func Route(rcfg RouteConfig) {
 			} else {
 				// The user IS logged in, they're just not permitted to go here
 				handlerResults.Redirect = "/denied"
-				handlerResults.Init() 
+				handlerResults.Init()
 			}
 		} else {
 			// Everything is ok. Proceed normally.
 			reqScope := RequestScope{UrlParams: urlParams, Session: session}
 			global["user"] = session.Values["user"]
-		    // Call the supplied handler function and get the results back.
+			// Call the supplied handler function and get the results back.
 			handlerResults, err = rcfg.Handler(r, appScope, &reqScope)
 			reqScope.Session.Save(r, w)
 		}
@@ -229,8 +240,8 @@ func Route(rcfg RouteConfig) {
 				default:
 					templateFilename := templateId + ".html"
 					// Add "global" template variables
-					if len(global) > 0 && handlerResults.View != nil{
-					    handlerResults.View["global"] = global
+					if len(global) > 0 && handlerResults.View != nil {
+						handlerResults.View["global"] = global
 					}
 					err = parsedTemplate.ExecuteTemplate(w, templateFilename, handlerResults.View)
 					if err != nil {
@@ -250,9 +261,9 @@ func staticHandler(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, appScope.BasePath+r.URL.Path)
 }
 
-// Configure gets the application base path from a command line argument.
-// It then reads the config file at [app_root_dir]/etc/config.json (This will probably be changed to YAML at some point.)
+// Configure gets the application base path from a command line argument.  It then reads the config file at [app_root_dir]/etc/config.yaml. 
 // It then attempts to grab a handle to the database, which it sticks into the appScope.
+// It will also set up a static handler for any files in [app_root_dir]/static, which can be used to serve up images, CSS and JavaScript. 
 // Configure is the first thing your application will call in its "main" method.
 func Configure(as *AppSetup) {
 

@@ -1,7 +1,6 @@
 package sawsij
 
 import (
-	"log"
 	"strconv"
 	"strings"
 	"unicode"
@@ -70,11 +69,11 @@ func MakeFieldName(dbName string) string {
 func GetUrlParams(pattern string, urlPath string) (urlParams map[string]string) {
 	rp := strings.NewReplacer(pattern, "")
 	restOfUrl := rp.Replace(urlPath)
-	//log.Printf("URL rest: %v", restOfUrl)
+	
 	urlParams = make(map[string](string))
 	if len(restOfUrl) > 0 && strings.Contains(restOfUrl, "/") {
 		allUrlParts := strings.Split(restOfUrl, "/")
-		//log.Printf("URL vars: %v", allUrlParts)
+		
 		if len(allUrlParts)%2 == 0 {
 			for i := 0; i < len(allUrlParts); i += 2 {
 				urlParams[allUrlParts[i]] = allUrlParts[i+1]
@@ -113,7 +112,7 @@ func GetTemplateName(pattern string) (templateId string) {
 
 	patternParts := strings.Split(pattern, "/")
 	maxParts := len(patternParts)
-	log.Printf("Pattern length: %d\tLastIndexOf /:%d", len(pattern)-1, strings.LastIndex(pattern, "/"))
+	
 
 	if strings.LastIndex(pattern, "/") == len(pattern)-1 && len(pattern) > 1 {
 		maxParts = maxParts - 1
@@ -135,6 +134,7 @@ func GetTemplateName(pattern string) (templateId string) {
 	return
 }
 
+// Determines if int "needle" is in the array "haystack". Returns true if it is, false if it isn't.
 func InArray(needle int,haystack []int)(ret bool){
     ret = false
     

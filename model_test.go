@@ -2,16 +2,17 @@ package sawsij
 
 import (
 	"flag"
+	"fmt"
+	"github.com/kylelemons/go-gypsy/yaml"
 	"testing"
 	"time"
-
-	"github.com/stathat/jconfig"
 
 	"database/sql"
 	_ "github.com/bmizerany/pq"
 )
 
-var config *jconfig.Config
+var config *yaml.File
+var configFile = flag.String("c", "./config_test.yaml", "path to config file")
 
 type Post struct {
 	Id        int64
@@ -21,14 +22,26 @@ type Post struct {
 }
 
 func configure(t *testing.T) (db *sql.DB) {
-	if config == nil {
-		var configFile string
 
-		flag.StringVar(&configFile, "c", "./config_test.json", "path to config file")
+	if config == nil {
 		flag.Parse()
-		config = jconfig.LoadConfig(configFile)
 	}
-	db, err := sql.Open("postgres", config.GetString("dbConnect"))
+
+	c, err := yaml.ReadFile(*configFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	driver, err := c.Get("database.driver")
+	if err != nil {
+		t.Fatal(err)
+	}
+	connect, err := c.Get("database.connect")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	db, err = sql.Open(driver, connect)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -201,8 +214,8 @@ func TestFetchAll(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	posts, err := model.FetchAll(&Post{}, "")
+	q := Query{}
+	posts, err := model.FetchAll(&Post{}, q)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,5 +231,246 @@ func TestFetchAll(t *testing.T) {
 
 }
 
-//TODO: Add tests for order by and limit queries
+func TestLimit(t *testing.T) {
+
+	db := configure(t)
+	defer db.Close()
+
+	/* stand up test table */
+
+	_, err := db.Exec("DROP TABLE IF EXISTS post")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = db.Exec("CREATE TABLE post( id bigserial NOT NULL,title text, body text,  created_on timestamp without time zone,  CONSTRAINT pk_posts PRIMARY KEY(id))")
+	if err != nil {
+		t.Fatal(err)
+	}
+	model := &Model{Db: db}
+	firstPost := &Post{}
+	firstPost.Title = "Test Post"
+	firstPost.Body = "Here is a test post which is \"awesome\". Can't believe how awesome it is. Geez."
+	firstPost.CreatedOn = time.Now()
+	model.Insert(firstPost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondPost := &Post{}
+	secondPost.Title = "Second Post"
+	secondPost.Body = "Here is a test post which is \"awesome\". Can't believe how awesome it is. Geez."
+	secondPost.CreatedOn = time.Now()
+	model.Insert(secondPost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	thirdPost := &Post{}
+	thirdPost.Title = "Third Post"
+	thirdPost.Body = "Here is a test post which is \"awesome\". Can't believe how awesome it is. Geez."
+	thirdPost.CreatedOn = time.Now()
+	model.Insert(thirdPost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	q := Query{Limit: 2}
+	posts, err := model.FetchAll(&Post{}, q)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(posts) != 2 {
+		t.Fatal("Select did not get correct number of rows.")
+	}
+
+	_, err = db.Exec("DROP TABLE IF EXISTS post")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+}
+
+func TestWhere(t *testing.T) {
+
+	db := configure(t)
+	defer db.Close()
+
+	/* stand up test table */
+
+	_, err := db.Exec("DROP TABLE IF EXISTS post")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = db.Exec("CREATE TABLE post( id bigserial NOT NULL,title text, body text,  created_on timestamp without time zone,  CONSTRAINT pk_posts PRIMARY KEY(id))")
+	if err != nil {
+		t.Fatal(err)
+	}
+	model := &Model{Db: db}
+	firstPost := &Post{}
+	firstPost.Title = "Test Post"
+	firstPost.Body = "Here is a test post which is \"awesome\". Can't believe how awesome it is. Geez."
+	firstPost.CreatedOn = time.Now()
+	model.Insert(firstPost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondPost := &Post{}
+	secondPost.Title = "Second Post"
+	secondPost.Body = "Here is a test post which is \"awesome\". Can't believe how awesome it is. Geez."
+	secondPost.CreatedOn = time.Now()
+	model.Insert(secondPost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	thirdPost := &Post{}
+	thirdPost.Title = "Third Post"
+	thirdPost.Body = "Here is a test post which is \"awesome\". Can't believe how awesome it is. Geez."
+	thirdPost.CreatedOn = time.Now()
+	model.Insert(thirdPost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	q := Query{Where: fmt.Sprintf("%v = 'Third Post'", MakeDbName("Title"))}
+	posts, err := model.FetchAll(&Post{}, q)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if posts[0].(*Post).Title != "Third Post" {
+		t.Fatal("Select returned incorrect data based on where clause.")
+	}
+
+	_, err = db.Exec("DROP TABLE IF EXISTS post")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestOrder(t *testing.T) {
+
+	db := configure(t)
+	defer db.Close()
+
+	/* stand up test table */
+
+	_, err := db.Exec("DROP TABLE IF EXISTS post")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = db.Exec("CREATE TABLE post( id bigserial NOT NULL,title text, body text,  created_on timestamp without time zone,  CONSTRAINT pk_posts PRIMARY KEY(id))")
+	if err != nil {
+		t.Fatal(err)
+	}
+	model := &Model{Db: db}
+	firstPost := &Post{}
+	firstPost.Title = "Test Post"
+	firstPost.Body = "Here is a test post which is \"awesome\". Can't believe how awesome it is. Geez."
+	firstPost.CreatedOn = time.Now().Add(-(60000000000)*1)
+	model.Insert(firstPost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondPost := &Post{}
+	secondPost.Title = "Second Post"
+	secondPost.Body = "Here is a test post which is \"awesome\". Can't believe how awesome it is. Geez."
+	secondPost.CreatedOn = time.Now().Add(-(60000000000)*2)
+	model.Insert(secondPost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	thirdPost := &Post{}
+	thirdPost.Title = "Third Post"
+	thirdPost.Body = "Here is a test post which is \"awesome\". Can't believe how awesome it is. Geez."
+	thirdPost.CreatedOn = time.Now().Add(-(60000000000)*3)
+	model.Insert(thirdPost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	q := Query{Order: fmt.Sprintf("%v DESC", MakeDbName("CreatedOn"))}
+	posts, err := model.FetchAll(&Post{}, q)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if posts[0].(*Post).Title != "Test Post" {
+		t.Fatal("Select returned incorrect data based on where clause.")
+	}
+
+	_, err = db.Exec("DROP TABLE IF EXISTS post")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestOffset(t *testing.T) {
+
+	db := configure(t)
+	defer db.Close()
+
+	/* stand up test table */
+
+	_, err := db.Exec("DROP TABLE IF EXISTS post")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = db.Exec("CREATE TABLE post( id bigserial NOT NULL,title text, body text,  created_on timestamp without time zone,  CONSTRAINT pk_posts PRIMARY KEY(id))")
+	if err != nil {
+		t.Fatal(err)
+	}
+	model := &Model{Db: db}
+	firstPost := &Post{}
+	firstPost.Title = "Test Post"
+	firstPost.Body = "Here is a test post which is \"awesome\". Can't believe how awesome it is. Geez."
+	firstPost.CreatedOn = time.Now().Add(-(60000000000)*1)
+	model.Insert(firstPost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondPost := &Post{}
+	secondPost.Title = "Second Post"
+	secondPost.Body = "Here is a test post which is \"awesome\". Can't believe how awesome it is. Geez."
+	secondPost.CreatedOn = time.Now().Add(-(60000000000)*2)
+	model.Insert(secondPost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	thirdPost := &Post{}
+	thirdPost.Title = "Third Post"
+	thirdPost.Body = "Here is a test post which is \"awesome\". Can't believe how awesome it is. Geez."
+	thirdPost.CreatedOn = time.Now().Add(-(60000000000)*3)
+	model.Insert(thirdPost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	
+	fourthPost := &Post{}
+	fourthPost.Title = "Fourth Post"
+	fourthPost.Body = "Here is a test post which is \"awesome\". Can't believe how awesome it is. Geez."
+	fourthPost.CreatedOn = time.Now().Add(-(60000000000)*4)
+	model.Insert(fourthPost)
+	if err != nil {
+		t.Fatal(err)
+	}
+		
+	q := Query{	    
+	    Order: fmt.Sprintf("%v DESC", MakeDbName("CreatedOn")),
+	    Offset: 2}
+	posts, err := model.FetchAll(&Post{}, q)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if posts[0].(*Post).Title != "Third Post" {
+		t.Fatal("Select did not get correct number of rows.")
+	}
+
+	_, err = db.Exec("DROP TABLE IF EXISTS post")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+}
+
 
