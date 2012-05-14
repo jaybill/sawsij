@@ -134,9 +134,13 @@ type RouteConfig struct {
 //
 // You generally call Route() once per pattern after you've called Configure() and before you call Run().
 func Route(rcfg RouteConfig) {
-
 	templateId := GetTemplateName(rcfg.Pattern)
-
+	var slashRoute string = ""
+    if p := strings.LastIndex(rcfg.Pattern,"/"); p != len(rcfg.Pattern) - 1{ 
+        slashRoute = rcfg.Pattern + "/"       
+        log.Printf("Specified %q, implying %q",rcfg.Pattern,slashRoute)
+    }
+    
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Request method from handler: %q", r.Method)
 
@@ -258,6 +262,10 @@ func Route(rcfg RouteConfig) {
 	}
 
 	http.HandleFunc(rcfg.Pattern, fn)
+	
+	if slashRoute != ""{
+    	http.HandleFunc(slashRoute, fn)
+	}
 }
 
 func staticHandler(w http.ResponseWriter, r *http.Request) {
