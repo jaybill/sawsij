@@ -1,0 +1,6 @@
+server:
+  port: 8077
+
+database:
+  driver: postgres
+  connect: user=XXXXX password=XXXXX dbname=XXXXXX sslmode=disable
