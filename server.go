@@ -135,7 +135,7 @@ type RouteConfig struct {
 // and "/posts/list" will look for "[app_root_dir]/templates/posts-list.html". The pattern "/" will look for "[app_root_dir]/index.html".
 //
 // You generally call Route() once per pattern after you've called Configure() and before you call Run().
-func Route(rcfg RouteConfig) {
+func Route(rcfg RouteConfig){
 	templateId := GetTemplateName(rcfg.Pattern)
 	var slashRoute string = ""
     if p := strings.LastIndex(rcfg.Pattern,"/"); p != len(rcfg.Pattern) - 1{ 
@@ -268,6 +268,8 @@ func Route(rcfg RouteConfig) {
 	if slashRoute != ""{
     	http.HandleFunc(slashRoute, fn)
 	}
+	
+	return
 }
 
 func staticHandler(w http.ResponseWriter, r *http.Request) {

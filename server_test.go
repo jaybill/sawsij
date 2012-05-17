@@ -11,29 +11,13 @@ import (
 	"strings"
 	"testing"
 	"log"
+	"net/http"
+
 )
 
-var env map[string]string
-var configS *yaml.File
-var configFileS = flag.String("cf", "./config_test.yaml", "path to config file")
 var workDir string = ""
-var staticDir string = "/static"
-var templateDir string = "/templates"
-var etcDir string = "/etc"
-var dummyTemplate = "<% .val %>"
-var dummyConfigFile = `
-server:
-  port: 8066
-  cacheTemplates: false
-    
-database:
-  driver: @@DB_DRIVER@@
-  connect: @@DB_CONNECT@@
-    
-encryption:
-  salt: 213asjdhaskjh213
-  key: sakjdhuh23i123123
-`
+var sConfigFile = flag.String("cf", "./config_test.yaml", "path to config file")
+
 
 func writeStringToFile(input string,filepath string) (err error){
 
@@ -53,6 +37,27 @@ func writeStringToFile(input string,filepath string) (err error){
 }
 
 func standup(t *testing.T) {
+
+    var env map[string]string        
+    var staticDir string = "/static"
+    var templateDir string = "/templates"
+    var etcDir string = "/etc"
+    var dummyTemplate = "<% .val %>"
+    var dummyConfigFile = `
+    server:
+      port: 8066
+      cacheTemplates: false
+        
+    database:
+      driver: @@DB_DRIVER@@
+      connect: @@DB_CONNECT@@
+        
+    encryption:
+      salt: 213asjdhaskjh213
+      key: sakjdhuh23i123123
+    `
+    log.Print("Attempting to stand environment up...")
+
 	envStrings := os.Environ()
 
 	env = make(map[string]string)
@@ -62,6 +67,9 @@ func standup(t *testing.T) {
 		env[keyval[0]] = keyval[1]
 	}
 
+    if ! flag.Parsed(){
+        flag.Parse()
+    }
 
 	workDir = os.TempDir() + "/sawsijtestapp"
 	t.Log(workDir)
@@ -90,7 +98,7 @@ func standup(t *testing.T) {
 		t.Fatal(err)
 	}
 	
-	cy, err := yaml.ReadFile(*configFileS)
+	cy, err := yaml.ReadFile(*configFile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,20 +137,21 @@ func teardown(t *testing.T) {
 	}
 }
 
-func TestConfigure(t *testing.T) {
+func testHandler(r *http.Request, a *AppScope, rs *RequestScope) (h HandlerResponse, err error) {
+
+
+    return
+}
+
+func TestRouteAndConfigure(t *testing.T) {
 	
-	log.Print("Starting test")
-	standup(t)
 	
-	 // Create a new AppSetup type     
+	standup(t)	
     as := new(AppSetup)
-    
-    // Configure the application
 	err := Configure(as,workDir)
 	if err != nil {
 	    t.Fatal(err)
 	}
-	
+	Route(RouteConfig{Pattern: "/", Handler: testHandler, Roles: make([]int,0)})
     teardown(t)
 }
-
