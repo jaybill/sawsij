@@ -21,7 +21,7 @@ var templateDir string = "/templates"
 var etcDir string = "/etc"
 var dummyConfigFile = `
 server:
-  port: 8077
+  port: 8066
   cacheTemplates: false
     
 database:
