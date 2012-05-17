@@ -4,7 +4,6 @@
 
 server:
   port: 8077
-  tmpdir: /tmp
 
 database:
   driver: postgres
