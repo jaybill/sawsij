@@ -10,15 +10,17 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"log"
 )
 
 var env map[string]string
-var config *yaml.File
-var configFile = flag.String("c", "./config_test.yaml", "path to config file")
+var configS *yaml.File
+var configFileS = flag.String("cf", "./config_test.yaml", "path to config file")
 var workDir string = ""
 var staticDir string = "/static"
 var templateDir string = "/templates"
 var etcDir string = "/etc"
+var dummyTemplate = "<% .val %>"
 var dummyConfigFile = `
 server:
   port: 8066
@@ -62,7 +64,7 @@ func standup(t *testing.T) {
 
 
 	workDir = os.TempDir() + "/sawsijtestapp"
-	//t.Log(workDir)
+	t.Log(workDir)
 
 	err := os.RemoveAll(workDir)
 	if err != nil {
@@ -88,17 +90,17 @@ func standup(t *testing.T) {
 		t.Fatal(err)
 	}
 	
-	c, err := yaml.ReadFile(*configFile)
+	cy, err := yaml.ReadFile(*configFileS)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	dbDriver, err := c.Get("database.driver")
+	dbDriver, err := cy.Get("database.driver")
 	if err != nil {
 		t.Fatal(err)
 	}
 	
-	dbConnect, err := c.Get("database.connect")
+	dbConnect, err := cy.Get("database.connect")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,8 +114,12 @@ func standup(t *testing.T) {
 	if err != nil{
     	t.Fatal(err)
 	}
-			
-
+		
+	err = writeStringToFile(dummyTemplate,templateDir + "/dummy.html")
+	if err != nil{
+    	t.Fatal(err)
+	}			
+    
 }
 
 func teardown(t *testing.T) {
@@ -123,8 +129,20 @@ func teardown(t *testing.T) {
 	}
 }
 
-func Test(t *testing.T) {
+func TestConfigure(t *testing.T) {
+	
+	log.Print("Starting test")
 	standup(t)
+	
+	 // Create a new AppSetup type     
+    as := new(AppSetup)
+    
+    // Configure the application
+	err := Configure(as,workDir)
+	if err != nil {
+	    t.Fatal(err)
+	}
+	
     teardown(t)
 }
 

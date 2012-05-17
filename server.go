@@ -77,6 +77,7 @@ func parseTemplates() {
 	}
 	templateExt := "html"
 	var templateFiles []string
+
 	for i := 0; i < len(allFiles); i++ {
 		if si := strings.Index(allFiles[i], templateExt); si != -1 {
 			if si == len(allFiles[i])-len(templateExt) {
@@ -85,11 +86,12 @@ func parseTemplates() {
 		}
 	}
 	log.Printf("Templates: %v", templateFiles)
-
-	pt, err := template.New("dummy").Delims("<%", "%>").Funcs(GetFuncMap()).ParseFiles(templateFiles...)
-	parsedTemplate = pt
-	if err != nil {
-		log.Print(err)
+    if len(templateFiles) > 0 {
+	    pt, err := template.New("dummy").Delims("<%", "%>").Funcs(GetFuncMap()).ParseFiles(templateFiles...)
+	    parsedTemplate = pt
+	    if err != nil {
+		    log.Print(err)
+	    }
 	}
 }
 
@@ -273,20 +275,27 @@ func staticHandler(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, appScope.BasePath+r.URL.Path)
 }
 
-// Configure gets the application base path from a command line argument.  It then reads the config file at [app_root_dir]/etc/config.yaml. 
+// Configure gets the application base path from a command line argument unless you specify it.  It then reads the config file at [app_root_dir]/etc/config.yaml. 
 // It then attempts to grab a handle to the database, which it sticks into the appScope.
 // It will also set up a static handler for any files in [app_root_dir]/static, which can be used to serve up images, CSS and JavaScript. 
 // Configure is the first thing your application will call in its "main" method.
-func Configure(as *AppSetup) {
+func Configure(as *AppSetup, basePath string) (err error){
 
 	a := AppScope{Setup: as}
 	appScope = &a
-
-	if len(os.Args) == 1 {
-		log.Fatal("No basepath file specified.")
-	}
-
-	appScope.BasePath = string(os.Args[1])
+	log.Printf("Basepath is currently %q",basePath)
+    if basePath == "" {
+        
+    	if len(os.Args) == 1 {
+	    	log.Fatal("No basepath file specified.")
+	    }
+    
+        appScope.BasePath = string(os.Args[1])    
+    } else {
+        appScope.BasePath = basePath
+    }
+	
+	
 	configFilename := appScope.BasePath + "/etc/config.yaml"
 
 	log.Print("Using config file [" + configFilename + "]")
@@ -323,6 +332,8 @@ func Configure(as *AppSetup) {
 	http.HandleFunc("/static/", staticHandler)
 
 	parseTemplates()
+	
+	return
 }
 
 // Run will start a web server on the port specified in the config file, using the configuration in the config file and the routes specified by any Route() calls
