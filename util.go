@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"os"
 )
 
 // Return type constants, used in the switch for determining what format the response will be returned in.
@@ -149,5 +150,23 @@ func InArray(needle int,haystack []int)(ret bool){
     }    
     
     return
+}
+
+// Takes a string and a path and writes the string to the file specified by the path.
+func WriteStringToFile(input string,filepath string) (err error){
+
+ f, err := os.Create(filepath)
+    if err != nil {
+        return
+    }
+
+    defer f.Close()
+
+    _, err = f.Write([]byte(input))
+    if err != nil {
+        return 
+    }
+
+    return 
 }
 
