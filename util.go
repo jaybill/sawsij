@@ -4,10 +4,15 @@
 package sawsij
 
 import (
+	"os"
 	"strconv"
 	"strings"
 	"unicode"
-	"os"
+	"net/http"
+	"io"
+	"time"
+	"io/ioutil"
+	"math/rand"
 )
 
 // Return type constants, used in the switch for determining what format the response will be returned in.
@@ -73,11 +78,11 @@ func MakeFieldName(dbName string) string {
 func GetUrlParams(pattern string, urlPath string) (urlParams map[string]string) {
 	rp := strings.NewReplacer(pattern, "")
 	restOfUrl := rp.Replace(urlPath)
-	
+
 	urlParams = make(map[string](string))
 	if len(restOfUrl) > 0 && strings.Contains(restOfUrl, "/") {
 		allUrlParts := strings.Split(restOfUrl, "/")
-		
+
 		if len(allUrlParts)%2 == 0 {
 			for i := 0; i < len(allUrlParts); i += 2 {
 				urlParams[allUrlParts[i]] = allUrlParts[i+1]
@@ -116,7 +121,6 @@ func GetTemplateName(pattern string) (templateId string) {
 
 	patternParts := strings.Split(pattern, "/")
 	maxParts := len(patternParts)
-	
 
 	if strings.LastIndex(pattern, "/") == len(pattern)-1 && len(pattern) > 1 {
 		maxParts = maxParts - 1
@@ -139,34 +143,68 @@ func GetTemplateName(pattern string) (templateId string) {
 }
 
 // Determines if int "needle" is in the array "haystack". Returns true if it is, false if it isn't.
-func InArray(needle int,haystack []int)(ret bool){
-    ret = false
-    
-    for i := 0; i < len(haystack); i++ {
-        if needle == haystack[i]{
-            ret = true
-            break
-        }
-    }    
-    
-    return
+func InArray(needle int, haystack []int) (ret bool) {
+	ret = false
+
+	for i := 0; i < len(haystack); i++ {
+		if needle == haystack[i] {
+			ret = true
+			break
+		}
+	}
+
+	return
 }
 
 // Takes a string and a path and writes the string to the file specified by the path.
-func WriteStringToFile(input string,filepath string) (err error){
+func WriteStringToFile(input string, filepath string) (err error) {
 
- f, err := os.Create(filepath)
+	f, err := os.Create(filepath)
+	if err != nil {
+		return
+	}
+
+	defer f.Close()
+
+	_, err = f.Write([]byte(input))
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+// Takes a url and a file path. Downloads the url to the path.
+func CopyUrlToFile(url string,filepath string) (err error){
+    
+    f, err := os.Create(filepath)
+	if err != nil {
+		return
+	}
+	
+    res, err := http.Get(url)
     if err != nil {
         return
     }
-
-    defer f.Close()
-
-    _, err = f.Write([]byte(input))
+    data, err := ioutil.ReadAll(res.Body)
     if err != nil {
-        return 
+        return
     }
+    
+    _, err = f.Write(data)
+	if err != nil {
+		return
+	}
 
-    return 
+	return
+}
+
+// Returns a fixed length random identifier. NOT guaranteed to be globally unique. Useful for generating temporary directory names.
+func MakeRandomId() (ident string){
+
+    h := md5.New()
+    io.WriteString(h,string(time.Now().Unix()))
+    ident = fmt.Sprintf("%x",h.Sum(nil))
+    return
 }
 
