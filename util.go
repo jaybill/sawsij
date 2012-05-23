@@ -235,11 +235,14 @@ func UnzipFileToPath(zipfile string, path string) (err error) {
 			return err
 		}
 
-		fmt.Printf("dir: %s - file: %s\n", filepath, filename)
+		//fmt.Printf("dir: %s - file: %s\n", filepath, filename)
 		rc, err := f.Open()
+    	defer rc.Close()
 		if err != nil {
 			return err
 		}
+		
+
 		
 		outfile, err := os.Create(filepath + "/" + filename)
 	    if err != nil {
@@ -256,14 +259,6 @@ func UnzipFileToPath(zipfile string, path string) (err error) {
 	        return err
         }		
 		
-		/*
-			_, err = io.CopyN(os.Stdout, rc, 68)
-			if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
-			}
-		*/
-		rc.Close()
 
 	}
 
