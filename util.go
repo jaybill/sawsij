@@ -4,15 +4,20 @@
 package sawsij
 
 import (
+	"io"
+	"io/ioutil"
+	"math/rand"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
-	"unicode"
-	"net/http"
-	"io"
 	"time"
-	"io/ioutil"
-	"math/rand"
+	"unicode"
+
+	"crypto/md5"
+	"fmt"
+
+	"archive/zip"
 )
 
 // Return type constants, used in the switch for determining what format the response will be returned in.
@@ -175,23 +180,23 @@ func WriteStringToFile(input string, filepath string) (err error) {
 }
 
 // Takes a url and a file path. Downloads the url to the path.
-func CopyUrlToFile(url string,filepath string) (err error){
-    
-    f, err := os.Create(filepath)
+func CopyUrlToFile(url string, filepath string) (err error) {
+
+	f, err := os.Create(filepath)
 	if err != nil {
 		return
 	}
-	
-    res, err := http.Get(url)
-    if err != nil {
-        return
-    }
-    data, err := ioutil.ReadAll(res.Body)
-    if err != nil {
-        return
-    }
-    
-    _, err = f.Write(data)
+
+	res, err := http.Get(url)
+	if err != nil {
+		return
+	}
+	data, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return
+	}
+
+	_, err = f.Write(data)
 	if err != nil {
 		return
 	}
@@ -199,12 +204,80 @@ func CopyUrlToFile(url string,filepath string) (err error){
 	return
 }
 
-// Returns a fixed length random identifier. NOT guaranteed to be globally unique. Useful for generating temporary directory names.
-func MakeRandomId() (ident string){
+// Takes a path to a zip file and a directory to extract to, extracts the zip file, creating directories as needed.
+func UnzipFileToPath(zipfile string, path string) (err error) {
+	// Open a zip archive for reading.
+	r, err := zip.OpenReader(zipfile)
+	if err != nil {
+		return
+	}
+	defer r.Close()
 
-    h := md5.New()
-    io.WriteString(h,string(time.Now().Unix()))
-    ident = fmt.Sprintf("%x",h.Sum(nil))
-    return
+	// Iterate through the files in the archive,
+	// printing some of their contents.
+	//files := make([]string,0)
+	for _, f := range r.File {
+		var filepath string = ""
+		pathparts := strings.Split(f.Name, "/")
+
+		filename := pathparts[len(pathparts)-1]
+
+		for i := range pathparts {
+			if i < len(pathparts)-1 {
+				filepath += "/" + pathparts[i]
+			}
+		}
+
+		filepath = path + filepath
+        
+		err = os.MkdirAll(filepath, os.FileMode(0777))
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("dir: %s - file: %s\n", filepath, filename)
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+		
+		outfile, err := os.Create(filepath + "/" + filename)
+	    if err != nil {
+		    return err
+	    }
+		
+	    infile, err := ioutil.ReadAll(rc)
+        if err != nil {
+            return err
+        }
+
+        _, err = outfile.Write(infile)
+        if err != nil {
+	        return err
+        }		
+		
+		/*
+			_, err = io.CopyN(os.Stdout, rc, 68)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+		*/
+		rc.Close()
+
+	}
+
+	return
+
+}
+
+// Returns a fixed length random identifier. NOT guaranteed to be globally unique. Useful for generating temporary directory names.
+func MakeRandomId() (ident string) {
+	rand.Seed(time.Now().UnixNano())
+	cr := strconv.FormatInt(int64(rand.Intn(999999999)+111111111), 10)
+	h := md5.New()
+	io.WriteString(h, cr)
+	ident = fmt.Sprintf("%x", h.Sum(nil))
+	return
 }
 
