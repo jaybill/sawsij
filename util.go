@@ -4,6 +4,10 @@
 package sawsij
 
 import (
+	"archive/zip"
+	"bufio"
+	"crypto/md5"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -13,11 +17,6 @@ import (
 	"strings"
 	"time"
 	"unicode"
-
-	"crypto/md5"
-	"fmt"
-
-	"archive/zip"
 )
 
 // Return type constants, used in the switch for determining what format the response will be returned in.
@@ -165,6 +164,7 @@ func InArray(needle int, haystack []int) (ret bool) {
 func WriteStringToFile(input string, filepath string) (err error) {
 
 	f, err := os.Create(filepath)
+
 	if err != nil {
 		return
 	}
@@ -183,9 +183,11 @@ func WriteStringToFile(input string, filepath string) (err error) {
 func CopyUrlToFile(url string, filepath string) (err error) {
 
 	f, err := os.Create(filepath)
+
 	if err != nil {
 		return
 	}
+	defer f.Close()
 
 	res, err := http.Get(url)
 	if err != nil {
@@ -213,9 +215,7 @@ func UnzipFileToPath(zipfile string, path string) (err error) {
 	}
 	defer r.Close()
 
-	// Iterate through the files in the archive,
-	// printing some of their contents.
-	//files := make([]string,0)
+	// Iterate through the files in the archive
 	for _, f := range r.File {
 		var filepath string = ""
 		pathparts := strings.Split(f.Name, "/")
@@ -229,36 +229,31 @@ func UnzipFileToPath(zipfile string, path string) (err error) {
 		}
 
 		filepath = path + filepath
-        
+
 		err = os.MkdirAll(filepath, os.FileMode(0777))
 		if err != nil {
 			return err
 		}
 
-		//fmt.Printf("dir: %s - file: %s\n", filepath, filename)
 		rc, err := f.Open()
-    	defer rc.Close()
+		defer rc.Close()
 		if err != nil {
 			return err
 		}
-		
-
-		
 		outfile, err := os.Create(filepath + "/" + filename)
-	    if err != nil {
-		    return err
-	    }
-		
-	    infile, err := ioutil.ReadAll(rc)
-        if err != nil {
-            return err
-        }
+		if err != nil {
+			return err
+		}
 
-        _, err = outfile.Write(infile)
-        if err != nil {
-	        return err
-        }		
-		
+		infile, err := ioutil.ReadAll(rc)
+		if err != nil {
+			return err
+		}
+
+		_, err = outfile.Write(infile)
+		if err != nil {
+			return err
+		}
 
 	}
 
@@ -274,5 +269,31 @@ func MakeRandomId() (ident string) {
 	io.WriteString(h, cr)
 	ident = fmt.Sprintf("%x", h.Sum(nil))
 	return
+}
+
+func GetUserInput(prompt string, defaultAnswer string) (answer string, err error) {
+	var fmtPrompt string = ""
+
+	if defaultAnswer == "" {
+		fmtPrompt = "%v: %v"
+	} else {
+		fmtPrompt = "%v [%v]: "
+	}
+
+	fmt.Printf(fmtPrompt, prompt, defaultAnswer)
+	rd := bufio.NewReader(os.Stdin)
+	line, _, err := rd.ReadLine()
+
+	if err != nil {
+		return
+	} else {
+		answer = strings.TrimSpace(string(line))
+		if answer == "" {
+			answer = defaultAnswer
+		}
+	}
+
+	return
+
 }
 
