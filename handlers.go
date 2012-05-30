@@ -15,33 +15,33 @@ import (
 // will place the user data in the session, calling ClearPasswordHash() before it does so.
 func LoginHandler(r *http.Request, a *AppScope, rs *RequestScope) (h HandlerResponse, err error) {
 	h.Init()
-    var dest string
+	var dest string
 
-	if rs.UrlParams["dest"] != "" {		
-		if err != nil{
-		    log.Print(err)
+	if rs.UrlParams["dest"] != "" {
+		if err != nil {
+			log.Print(err)
 		} else {
-            h.View["dest"] = rs.UrlParams["dest"]
+			h.View["dest"] = rs.UrlParams["dest"]
 		}
 	} else {
-	    log.Println("No destination specified, will redirect to /")
+		log.Println("No destination specified, will redirect to /")
 	}
 
 	if r.Method == "POST" {
 
 		username := r.FormValue("username")
 		password := r.FormValue("password")
-        dest64    := r.FormValue("dest")
+		dest64 := r.FormValue("dest")
 
-        if dest64 != ""{
-            bDest, err := base64.URLEncoding.DecodeString(dest64)
-            if err != nil{
-                log.Print(err)
-            } else {
-                 dest = string(bDest)
-            }
-            
-        }
+		if dest64 != "" {
+			bDest, err := base64.URLEncoding.DecodeString(dest64)
+			if err != nil {
+				log.Print(err)
+			} else {
+				dest = string(bDest)
+			}
+
+		}
 
 		if err != nil {
 			log.Println(err)
@@ -61,12 +61,12 @@ func LoginHandler(r *http.Request, a *AppScope, rs *RequestScope) (h HandlerResp
 			user.ClearPasswordHash()
 			rs.Session.Values["user"] = user
 			log.Printf("Logging in userId: %+v", rs.Session.Values["user"])
-			if dest != ""{
-			    h.Redirect = dest
+			if dest != "" {
+				h.Redirect = dest
 			} else {
-			    h.Redirect = "/"
+				h.Redirect = "/"
 			}
-			
+
 		} else {
 			h.View["username"] = username
 		}
@@ -78,8 +78,8 @@ func LoginHandler(r *http.Request, a *AppScope, rs *RequestScope) (h HandlerResp
 
 // A handler that you can use for the pattern "/denied", which is where requests will be sent when the user 
 // attempts to go to a page they do not have the right role for.
-func DeniedHandler(r *http.Request, a *AppScope, rs *RequestScope) (h HandlerResponse, err error) {    
-    return
+func DeniedHandler(r *http.Request, a *AppScope, rs *RequestScope) (h HandlerResponse, err error) {
+	return
 }
 
 // A handler that can be used for clearing the session, logging the user out. No template is required.

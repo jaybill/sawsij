@@ -13,6 +13,7 @@ import (
 	"reflect"
 	"strings"
 )
+
 // The Model struct is intended to provide something analagous to a lightweight ORM, though not quite. 
 // The general pattern of usage is that you create a struct that represents a row in your table, with the 
 // fields mapping to column names. You then pass a pointer to that struct into Model's various methods 
@@ -39,7 +40,7 @@ type Model struct {
 // Update expects a pointer to a struct that represents a row in your database. The "Id" field of the struct will be used in the where clause.
 func (m *Model) Update(data interface{}) (err error) {
 
-	rowInfo := getRowInfo(data,false)
+	rowInfo := getRowInfo(data, false)
 	holders := make([]string, len(rowInfo.Keys))
 
 	for i := 0; i < len(rowInfo.Keys); i++ {
@@ -57,12 +58,11 @@ func (m *Model) Update(data interface{}) (err error) {
 	return
 }
 
-
 // Insert expects a pointer to a struct that represents a row in your database. The "Id" field of the referenced struct will be populated with the 
 // identity value if the row is successfully inserted.
 func (m *Model) Insert(data interface{}) (err error) {
 
-	rowInfo := getRowInfo(data,false)
+	rowInfo := getRowInfo(data, false)
 	holders := make([]string, len(rowInfo.Keys))
 
 	for i := 0; i < len(rowInfo.Keys); i++ {
@@ -72,7 +72,7 @@ func (m *Model) Insert(data interface{}) (err error) {
 	query := fmt.Sprintf("INSERT INTO %q(%v) VALUES (%v)", rowInfo.TableName, strings.Join(rowInfo.Keys, ","), strings.Join(holders, ","))
 
 	log.Printf("Query: %q", query)
-	log.Printf("Data: %+v",data)
+	log.Printf("Data: %+v", data)
 	_, err = m.Db.Exec(query, rowInfo.Vals...)
 	if err != nil {
 		log.Print(err)
@@ -97,10 +97,11 @@ func (m *Model) Insert(data interface{}) (err error) {
 	}
 	return
 }
+
 // Delete takes a pointer to a struct and deletes the row where the id in the table is the Id of the struct.
 // Note that you don't need to have acquired this struct from a row, passing in a pointer to something like {Id: 4} will totally work.
 func (m *Model) Delete(data interface{}) (err error) {
-	rowInfo := getRowInfo(data,false)
+	rowInfo := getRowInfo(data, false)
 	if rowInfo.Id != -1 {
 		query := fmt.Sprintf("DELETE FROM %q WHERE id=%d", rowInfo.TableName, rowInfo.Id)
 		log.Printf("Query: %q", query)
@@ -115,7 +116,7 @@ func (m *Model) Delete(data interface{}) (err error) {
 
 // Fetch returns a single row where the id in the table is the Id of the struct.
 func (m *Model) Fetch(data interface{}) (err error) {
-	rowInfo := getRowInfo(data,false)
+	rowInfo := getRowInfo(data, false)
 	cols := make([]interface{}, 0)
 	retRow := reflect.ValueOf(data).Elem()
 	dataType := retRow.Type()
@@ -137,67 +138,67 @@ func (m *Model) Fetch(data interface{}) (err error) {
 	}
 	return
 }
+
 // The Query type is used to construct a SQL query. You should always use MakeDbName() to get column names, as this will 
 // ensure cross-RDBMS compatibility later on.
-type Query struct{
-    // A where clause, such as fmt.Sprintf("%v = 'Third Post'", MakeDbName("Title"))
-    Where string
-    // An order clause, such as fmt.Sprintf("%v DESC", MakeDbName("CreatedOn"))
-    Order string
-    // A number of records to limit the results to
-    Limit int
-    // The number of rows to offset the returned results by
-    Offset int    
+type Query struct {
+	// A where clause, such as fmt.Sprintf("%v = 'Third Post'", MakeDbName("Title"))
+	Where string
+	// An order clause, such as fmt.Sprintf("%v DESC", MakeDbName("CreatedOn"))
+	Order string
+	// A number of records to limit the results to
+	Limit int
+	// The number of rows to offset the returned results by
+	Offset int
 }
 
 // FetchAll accepts a reference to a struct (generally "blank", though it doesn't matter), a Query and a set of query arguments and returns a set of rows that match
 // the query.
 func (m *Model) FetchAll(data interface{}, q Query, args ...interface{}) (ents []interface{}, err error) {
 	ents = make([]interface{}, 0)
-	rowInfo := getRowInfo(data,true)
+	rowInfo := getRowInfo(data, true)
 
 	retRow := reflect.ValueOf(data).Elem()
 	dataType := retRow.Type()
-	t := reflect.TypeOf(data).Elem()	
+	t := reflect.TypeOf(data).Elem()
 
 	query := fmt.Sprintf("SELECT %v FROM %q", strings.Join(rowInfo.Keys, ","), rowInfo.TableName)
 	if q.Where != "" {
 		query = fmt.Sprintf("%v WHERE %v", query, q.Where)
 	}
-	
+
 	if q.Order != "" {
 		query = fmt.Sprintf("%v ORDER BY %v", query, q.Order)
 	}
-	
+
 	if q.Limit != 0 {
 		query = fmt.Sprintf("%v LIMIT %v", query, q.Limit)
 	}
-	
+
 	if q.Offset != 0 {
-	    query = fmt.Sprintf("%v OFFSET %v", query, q.Offset)
+		query = fmt.Sprintf("%v OFFSET %v", query, q.Offset)
 	}
-	
-	
+
 	log.Printf("Query: %q", query)
 
 	rows, err := m.Db.Query(query, args...)
-	if err == nil{
-	    for rows.Next() {
-		    ent := reflect.New(t)
-		    cols := make([]interface{}, 0)
-		    for i := 0; i < dataType.NumField(); i++ {
-			    f := ent.Elem().Field(i)			
-			    cols = append(cols, f.Addr().Interface())			
-		    }
-		    err = rows.Scan(cols...)
+	if err == nil {
+		for rows.Next() {
+			ent := reflect.New(t)
+			cols := make([]interface{}, 0)
+			for i := 0; i < dataType.NumField(); i++ {
+				f := ent.Elem().Field(i)
+				cols = append(cols, f.Addr().Interface())
+			}
+			err = rows.Scan(cols...)
 
-		    ents = append(ents, ent.Interface())
-		    if err != nil {
-			    log.Print(err)
-		    }
-	    }
+			ents = append(ents, ent.Interface())
+			if err != nil {
+				log.Print(err)
+			}
+		}
 	} else {
-	    log.Print(err)
+		log.Print(err)
 	}
 	return
 }
@@ -224,7 +225,7 @@ func getTableName(data interface{}) (tableName string) {
 	return
 }
 
-func getRowInfo(data interface{},includeId bool) (rowInfo forDb) {
+func getRowInfo(data interface{}, includeId bool) (rowInfo forDb) {
 	s := reflect.ValueOf(data).Elem()
 	typeOfT := s.Type()
 	rowInfo.Vals = make([]interface{}, 0)
@@ -240,19 +241,18 @@ func getRowInfo(data interface{},includeId bool) (rowInfo forDb) {
 
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
-		
+
 		if typeOfT.Field(i).Name != "Id" || includeId {
 			dbName := MakeDbName(typeOfT.Field(i).Name)
 			rowInfo.Keys = append(rowInfo.Keys, dbName)
 			rowInfo.Vals = append(rowInfo.Vals, f.Interface())
-		} 
-		
-		if typeOfT.Field(i).Name == "Id"{
+		}
+
+		if typeOfT.Field(i).Name == "Id" {
 			rowInfo.Id = f.Interface()
 			rowInfo.IdIndex = i
 		}
-		
+
 	}
 	return
 }
-
