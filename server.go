@@ -86,12 +86,12 @@ func parseTemplates() {
 		}
 	}
 	log.Printf("Templates: %v", templateFiles)
-    if len(templateFiles) > 0 {
-	    pt, err := template.New("dummy").Delims("<%", "%>").Funcs(GetFuncMap()).ParseFiles(templateFiles...)
-	    parsedTemplate = pt
-	    if err != nil {
-		    log.Print(err)
-	    }
+	if len(templateFiles) > 0 {
+		pt, err := template.New("dummy").Delims("<%", "%>").Funcs(GetFuncMap()).ParseFiles(templateFiles...)
+		parsedTemplate = pt
+		if err != nil {
+			log.Print(err)
+		}
 	}
 }
 
@@ -135,14 +135,14 @@ type RouteConfig struct {
 // and "/posts/list" will look for "[app_root_dir]/templates/posts-list.html". The pattern "/" will look for "[app_root_dir]/index.html".
 //
 // You generally call Route() once per pattern after you've called Configure() and before you call Run().
-func Route(rcfg RouteConfig){
+func Route(rcfg RouteConfig) {
 	templateId := GetTemplateName(rcfg.Pattern)
 	var slashRoute string = ""
-    if p := strings.LastIndex(rcfg.Pattern,"/"); p != len(rcfg.Pattern) - 1{ 
-        slashRoute = rcfg.Pattern + "/"       
-        log.Printf("Specified %q, implying %q",rcfg.Pattern,slashRoute)
-    }
-    
+	if p := strings.LastIndex(rcfg.Pattern, "/"); p != len(rcfg.Pattern)-1 {
+		slashRoute = rcfg.Pattern + "/"
+		log.Printf("Specified %q, implying %q", rcfg.Pattern, slashRoute)
+	}
+
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Request method from handler: %q", r.Method)
 
@@ -264,11 +264,11 @@ func Route(rcfg RouteConfig){
 	}
 
 	http.HandleFunc(rcfg.Pattern, fn)
-	
-	if slashRoute != ""{
-    	http.HandleFunc(slashRoute, fn)
+
+	if slashRoute != "" {
+		http.HandleFunc(slashRoute, fn)
 	}
-	
+
 	return
 }
 
@@ -281,23 +281,22 @@ func staticHandler(w http.ResponseWriter, r *http.Request) {
 // It then attempts to grab a handle to the database, which it sticks into the appScope.
 // It will also set up a static handler for any files in [app_root_dir]/static, which can be used to serve up images, CSS and JavaScript. 
 // Configure is the first thing your application will call in its "main" method.
-func Configure(as *AppSetup, basePath string) (err error){
+func Configure(as *AppSetup, basePath string) (err error) {
 
 	a := AppScope{Setup: as}
 	appScope = &a
-	log.Printf("Basepath is currently %q",basePath)
-    if basePath == "" {
-        
-    	if len(os.Args) == 1 {
-	    	log.Fatal("No basepath file specified.")
-	    }
-    
-        appScope.BasePath = string(os.Args[1])    
-    } else {
-        appScope.BasePath = basePath
-    }
-	
-	
+	log.Printf("Basepath is currently %q", basePath)
+	if basePath == "" {
+
+		if len(os.Args) == 1 {
+			log.Fatal("No basepath file specified.")
+		}
+
+		appScope.BasePath = string(os.Args[1])
+	} else {
+		appScope.BasePath = basePath
+	}
+
 	configFilename := appScope.BasePath + "/etc/config.yaml"
 
 	log.Print("Using config file [" + configFilename + "]")
@@ -334,7 +333,7 @@ func Configure(as *AppSetup, basePath string) (err error){
 	http.HandleFunc("/static/", staticHandler)
 
 	parseTemplates()
-	
+
 	return
 }
 
@@ -349,4 +348,3 @@ func Run() {
 	log.Print("Listening on port [" + port + "]")
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", port), nil))
 }
-

@@ -315,4 +315,3 @@ func GetUserInput(prompt string, defaultAnswer string) (answer string, err error
 	return
 
 }
-

@@ -370,7 +370,7 @@ func TestOrder(t *testing.T) {
 	firstPost := &Post{}
 	firstPost.Title = "Test Post"
 	firstPost.Body = "Here is a test post which is \"awesome\". Can't believe how awesome it is. Geez."
-	firstPost.CreatedOn = time.Now().Add(-(60000000000)*1)
+	firstPost.CreatedOn = time.Now().Add(-(60000000000) * 1)
 	model.Insert(firstPost)
 	if err != nil {
 		t.Fatal(err)
@@ -378,7 +378,7 @@ func TestOrder(t *testing.T) {
 	secondPost := &Post{}
 	secondPost.Title = "Second Post"
 	secondPost.Body = "Here is a test post which is \"awesome\". Can't believe how awesome it is. Geez."
-	secondPost.CreatedOn = time.Now().Add(-(60000000000)*2)
+	secondPost.CreatedOn = time.Now().Add(-(60000000000) * 2)
 	model.Insert(secondPost)
 	if err != nil {
 		t.Fatal(err)
@@ -386,7 +386,7 @@ func TestOrder(t *testing.T) {
 	thirdPost := &Post{}
 	thirdPost.Title = "Third Post"
 	thirdPost.Body = "Here is a test post which is \"awesome\". Can't believe how awesome it is. Geez."
-	thirdPost.CreatedOn = time.Now().Add(-(60000000000)*3)
+	thirdPost.CreatedOn = time.Now().Add(-(60000000000) * 3)
 	model.Insert(thirdPost)
 	if err != nil {
 		t.Fatal(err)
@@ -427,7 +427,7 @@ func TestOffset(t *testing.T) {
 	firstPost := &Post{}
 	firstPost.Title = "Test Post"
 	firstPost.Body = "Here is a test post which is \"awesome\". Can't believe how awesome it is. Geez."
-	firstPost.CreatedOn = time.Now().Add(-(60000000000)*1)
+	firstPost.CreatedOn = time.Now().Add(-(60000000000) * 1)
 	model.Insert(firstPost)
 	if err != nil {
 		t.Fatal(err)
@@ -435,7 +435,7 @@ func TestOffset(t *testing.T) {
 	secondPost := &Post{}
 	secondPost.Title = "Second Post"
 	secondPost.Body = "Here is a test post which is \"awesome\". Can't believe how awesome it is. Geez."
-	secondPost.CreatedOn = time.Now().Add(-(60000000000)*2)
+	secondPost.CreatedOn = time.Now().Add(-(60000000000) * 2)
 	model.Insert(secondPost)
 	if err != nil {
 		t.Fatal(err)
@@ -443,24 +443,24 @@ func TestOffset(t *testing.T) {
 	thirdPost := &Post{}
 	thirdPost.Title = "Third Post"
 	thirdPost.Body = "Here is a test post which is \"awesome\". Can't believe how awesome it is. Geez."
-	thirdPost.CreatedOn = time.Now().Add(-(60000000000)*3)
+	thirdPost.CreatedOn = time.Now().Add(-(60000000000) * 3)
 	model.Insert(thirdPost)
 	if err != nil {
 		t.Fatal(err)
 	}
-	
+
 	fourthPost := &Post{}
 	fourthPost.Title = "Fourth Post"
 	fourthPost.Body = "Here is a test post which is \"awesome\". Can't believe how awesome it is. Geez."
-	fourthPost.CreatedOn = time.Now().Add(-(60000000000)*4)
+	fourthPost.CreatedOn = time.Now().Add(-(60000000000) * 4)
 	model.Insert(fourthPost)
 	if err != nil {
 		t.Fatal(err)
 	}
-		
-	q := Query{	    
-	    Order: fmt.Sprintf("%v DESC", MakeDbName("CreatedOn")),
-	    Offset: 2}
+
+	q := Query{
+		Order:  fmt.Sprintf("%v DESC", MakeDbName("CreatedOn")),
+		Offset: 2}
 	posts, err := model.FetchAll(&Post{}, q)
 	if err != nil {
 		t.Fatal(err)
@@ -476,5 +476,3 @@ func TestOffset(t *testing.T) {
 	}
 
 }
-
-

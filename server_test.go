@@ -134,4 +134,3 @@ func TestRouteAndConfigure(t *testing.T) {
 	Route(RouteConfig{Pattern: "/", Handler: testHandler, Roles: make([]int, 0)})
 	teardown(t)
 }
-
