@@ -179,6 +179,25 @@ func WriteStringToFile(input string, filepath string) (err error) {
 	return
 }
 
+// Takes a string and a path and appends the string to the file specified by the path.
+func AppendStringToFile(input string, filepath string) (err error) {
+	
+    f, err := os.OpenFile(filepath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0744) 
+	if err != nil {
+		return
+	}
+
+	defer f.Close()
+
+	_, err = f.Write([]byte(input))
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+
 // Takes a url and a file path. Downloads the url to the path.
 func CopyUrlToFile(url string, filepath string) (err error) {
 
