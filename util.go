@@ -315,3 +315,35 @@ func GetUserInput(prompt string, defaultAnswer string) (answer string, err error
 	return
 
 }
+
+func CopyFile(dst, src string) (int64, error) { 
+        sf, err := os.Open(src) 
+        if err != nil { 
+                return 0, err 
+        } 
+        defer sf.Close() 
+        df, err := os.Create(dst) 
+        if err != nil { 
+                return 0, err 
+        } 
+        defer df.Close() 
+        return io.Copy(df, sf) 
+} 
+
+
+func CopyDir(s string,d string) (err error){
+	
+	entries, err := ioutil.ReadDir(s)
+	
+	for _, entry := range entries {
+		fullpath := s + "/" + entry.Name()
+		fmt.Printf("%v",fullpath)
+		if entry.IsDir(){
+			CopyDir(fullpath,d)
+		}		
+		fmt.Println()
+		
+	}
+	return
+}
+
