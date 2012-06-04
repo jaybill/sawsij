@@ -290,6 +290,9 @@ func MakeRandomId() (ident string) {
 	return
 }
 
+
+// Creates a prompt and waits for input from the user. If a default answer is supplied, it will be returned 
+// if the user presses enter without entering a value.
 func GetUserInput(prompt string, defaultAnswer string) (answer string, err error) {
 	var fmtPrompt string = ""
 
@@ -316,34 +319,89 @@ func GetUserInput(prompt string, defaultAnswer string) (answer string, err error
 
 }
 
-func CopyFile(dst, src string) (int64, error) { 
-        sf, err := os.Open(src) 
+// Copies file source to destination dest.
+func CopyFile(source string, dest string) (err error) { 
+        sf, err := os.Open(source) 
         if err != nil { 
-                return 0, err 
+                return  err 
         } 
         defer sf.Close() 
-        df, err := os.Create(dst) 
+        df, err := os.Create(dest) 
         if err != nil { 
-                return 0, err 
+                return  err 
         } 
         defer df.Close() 
-        return io.Copy(df, sf) 
+        _, err = io.Copy(df, sf)
+		if err == nil {
+			si,err := os.Stat(source)
+			if err != nil {
+				err = os.Chmod(dest,si.Mode())				
+			}
+			
+		}
+
+		return 
 } 
 
-
-func CopyDir(s string,d string) (err error){
+// Recursively copies a directory tree, attempting to preserve permissions. Source directory must exist, 
+// destination directory must *not* exist. 
+func CopyDir(source string,dest string) (err error){
 	
-	entries, err := ioutil.ReadDir(s)
+	// get properties of source dir
+	fi, err := os.Stat(source)
+	if err != nil {
+		return err
+	}
+	
+	if !fi.IsDir(){
+		return &SawsijError{"Source is not a directory"}
+	}
+	
+	// ensure dest dir does not already exist
+	
+	_, err = os.Open(dest)
+	if !os.IsNotExist(err) {
+		return &SawsijError{"Destination already exists"}
+	}
+	
+	// create dest dir
+				
+	
+	err = os.MkdirAll(dest,fi.Mode())
+	if err != nil {
+		return err
+	}
+	
+	entries, err := ioutil.ReadDir(source)
 	
 	for _, entry := range entries {
-		fullpath := s + "/" + entry.Name()
-		fmt.Printf("%v",fullpath)
-		if entry.IsDir(){
-			CopyDir(fullpath,d)
+		
+		sfp := source + "/" + entry.Name()
+		dfp := dest + "/" + entry.Name()
+		if entry.IsDir(){			
+			err = CopyDir(sfp,dfp)
+			if err != nil {
+				fmt.Println(err)	
+			}						
+		} else {
+			// perform copy			
+			err = CopyFile(sfp,dfp)
+			if err != nil {
+				fmt.Println(err)	
+			}
 		}		
-		fmt.Println()
+		
 		
 	}
 	return
 }
 
+// A struct for returning custom error messages
+type SawsijError struct {
+	What string
+}
+
+// Returns the error message defined in What as a string
+func (e *SawsijError) Error() string {
+	return e.What
+}
