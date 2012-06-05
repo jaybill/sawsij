@@ -181,8 +181,8 @@ func WriteStringToFile(input string, filepath string) (err error) {
 
 // Takes a string and a path and appends the string to the file specified by the path.
 func AppendStringToFile(input string, filepath string) (err error) {
-	
-    f, err := os.OpenFile(filepath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0744) 
+
+	f, err := os.OpenFile(filepath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0744)
 	if err != nil {
 		return
 	}
@@ -196,7 +196,6 @@ func AppendStringToFile(input string, filepath string) (err error) {
 
 	return
 }
-
 
 // Takes a url and a file path. Downloads the url to the path.
 func CopyUrlToFile(url string, filepath string) (err error) {
@@ -290,7 +289,6 @@ func MakeRandomId() (ident string) {
 	return
 }
 
-
 // Creates a prompt and waits for input from the user. If a default answer is supplied, it will be returned 
 // if the user presses enter without entering a value.
 func GetUserInput(prompt string, defaultAnswer string) (answer string, err error) {
@@ -320,78 +318,76 @@ func GetUserInput(prompt string, defaultAnswer string) (answer string, err error
 }
 
 // Copies file source to destination dest.
-func CopyFile(source string, dest string) (err error) { 
-        sf, err := os.Open(source) 
-        if err != nil { 
-                return  err 
-        } 
-        defer sf.Close() 
-        df, err := os.Create(dest) 
-        if err != nil { 
-                return  err 
-        } 
-        defer df.Close() 
-        _, err = io.Copy(df, sf)
-		if err == nil {
-			si,err := os.Stat(source)
-			if err != nil {
-				err = os.Chmod(dest,si.Mode())				
-			}
-			
+func CopyFile(source string, dest string) (err error) {
+	sf, err := os.Open(source)
+	if err != nil {
+		return err
+	}
+	defer sf.Close()
+	df, err := os.Create(dest)
+	if err != nil {
+		return err
+	}
+	defer df.Close()
+	_, err = io.Copy(df, sf)
+	if err == nil {
+		si, err := os.Stat(source)
+		if err != nil {
+			err = os.Chmod(dest, si.Mode())
 		}
 
-		return 
-} 
+	}
+
+	return
+}
 
 // Recursively copies a directory tree, attempting to preserve permissions. Source directory must exist, 
 // destination directory must *not* exist. 
-func CopyDir(source string,dest string) (err error){
-	
+func CopyDir(source string, dest string) (err error) {
+
 	// get properties of source dir
 	fi, err := os.Stat(source)
 	if err != nil {
 		return err
 	}
-	
-	if !fi.IsDir(){
+
+	if !fi.IsDir() {
 		return &SawsijError{"Source is not a directory"}
 	}
-	
+
 	// ensure dest dir does not already exist
-	
+
 	_, err = os.Open(dest)
 	if !os.IsNotExist(err) {
 		return &SawsijError{"Destination already exists"}
 	}
-	
+
 	// create dest dir
-				
-	
-	err = os.MkdirAll(dest,fi.Mode())
+
+	err = os.MkdirAll(dest, fi.Mode())
 	if err != nil {
 		return err
 	}
-	
+
 	entries, err := ioutil.ReadDir(source)
-	
+
 	for _, entry := range entries {
-		
+
 		sfp := source + "/" + entry.Name()
 		dfp := dest + "/" + entry.Name()
-		if entry.IsDir(){			
-			err = CopyDir(sfp,dfp)
+		if entry.IsDir() {
+			err = CopyDir(sfp, dfp)
 			if err != nil {
-				fmt.Println(err)	
-			}						
+				fmt.Println(err)
+			}
 		} else {
 			// perform copy			
-			err = CopyFile(sfp,dfp)
+			err = CopyFile(sfp, dfp)
 			if err != nil {
-				fmt.Println(err)	
+				fmt.Println(err)
 			}
-		}		
-		
-		
+		}
+
 	}
 	return
 }
