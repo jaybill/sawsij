@@ -114,6 +114,7 @@ type RouteConfig struct {
 	Pattern string
 	Handler func(*http.Request, *AppScope, *RequestScope) (HandlerResponse, error)
 	Roles   []int
+	// TODO Allow explicit configuration of response type (JSON/XML/Etc)
 }
 
 // Route takes route config and sets up a handler. This is the primary means by which applications interact with the framework.
@@ -320,6 +321,8 @@ func Configure(as *AppSetup, basePath string) (err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// TODO Check to see that database version matches the version specified in the code. Throw error and do not start.
 
 	key, err := c.Get("encryption.key")
 	if err != nil {

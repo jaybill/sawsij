@@ -27,20 +27,23 @@ import (
 //
 // Table names are mapped the same way, wherin a struct of type "PersonAddress" would look for a table called "person_address".
 //
-// At the moment only a single schema is supported and it must be in your database user's search path. You can generally do this 
-// in postgres with the following query:
+// If you set the Schema property to a valid schema name, it will be used. If generally only use one schema in your app, you can just
+// set the search path for the database user in postgres and omit the Schema property. (You can specifiy it if you want to use some other
+// schema.) You can generally do this in postgres with the following query:
 //
 // ALTER USER [db_username] SET search_path to '[app_schema_name]'
 // 
-// As current implemented, both your table and your struct must have an identity to do anything useful.
+// As currently implemented, both your table and your struct must have an identity to do anything useful. 
+// ("join" tables being the exception)
 type Model struct {
-	Db *sql.DB
+	Db     *sql.DB
+	Schema string
 }
 
 // Update expects a pointer to a struct that represents a row in your database. The "Id" field of the struct will be used in the where clause.
 func (m *Model) Update(data interface{}) (err error) {
 
-	rowInfo := getRowInfo(data, false)
+	rowInfo := getRowInfo(data, false, m.Schema)
 	holders := make([]string, len(rowInfo.Keys))
 
 	for i := 0; i < len(rowInfo.Keys); i++ {
@@ -62,7 +65,7 @@ func (m *Model) Update(data interface{}) (err error) {
 // identity value if the row is successfully inserted.
 func (m *Model) Insert(data interface{}) (err error) {
 
-	rowInfo := getRowInfo(data, false)
+	rowInfo := getRowInfo(data, false, m.Schema)
 	holders := make([]string, len(rowInfo.Keys))
 
 	for i := 0; i < len(rowInfo.Keys); i++ {
@@ -101,7 +104,7 @@ func (m *Model) Insert(data interface{}) (err error) {
 // Delete takes a pointer to a struct and deletes the row where the id in the table is the Id of the struct.
 // Note that you don't need to have acquired this struct from a row, passing in a pointer to something like {Id: 4} will totally work.
 func (m *Model) Delete(data interface{}) (err error) {
-	rowInfo := getRowInfo(data, false)
+	rowInfo := getRowInfo(data, false, m.Schema)
 	if rowInfo.Id != -1 {
 		query := fmt.Sprintf("DELETE FROM %q WHERE id=%d", rowInfo.TableName, rowInfo.Id)
 		log.Printf("Query: %q", query)
@@ -116,7 +119,7 @@ func (m *Model) Delete(data interface{}) (err error) {
 
 // Fetch returns a single row where the id in the table is the Id of the struct.
 func (m *Model) Fetch(data interface{}) (err error) {
-	rowInfo := getRowInfo(data, false)
+	rowInfo := getRowInfo(data, false, m.Schema)
 	cols := make([]interface{}, 0)
 	retRow := reflect.ValueOf(data).Elem()
 	dataType := retRow.Type()
@@ -156,7 +159,7 @@ type Query struct {
 // the query.
 func (m *Model) FetchAll(data interface{}, q Query, args ...interface{}) (ents []interface{}, err error) {
 	ents = make([]interface{}, 0)
-	rowInfo := getRowInfo(data, true)
+	rowInfo := getRowInfo(data, true, m.Schema)
 
 	retRow := reflect.ValueOf(data).Elem()
 	dataType := retRow.Type()
@@ -211,7 +214,7 @@ type forDb struct {
 	TableName string
 }
 
-func getTableName(data interface{}) (tableName string) {
+func getTableName(data interface{}, schema string) (tableName string) {
 	s := reflect.ValueOf(data).Elem()
 	typeOfT := s.Type()
 
@@ -221,11 +224,13 @@ func getTableName(data interface{}) (tableName string) {
 		tableName = parts[len(parts)-1]
 	}
 	tableName = MakeDbName(tableName)
-
+	if schema != "" {
+		tableName += schema + "." + tableName
+	}
 	return
 }
 
-func getRowInfo(data interface{}, includeId bool) (rowInfo forDb) {
+func getRowInfo(data interface{}, includeId bool, schema string) (rowInfo forDb) {
 	s := reflect.ValueOf(data).Elem()
 	typeOfT := s.Type()
 	rowInfo.Vals = make([]interface{}, 0)
@@ -237,7 +242,7 @@ func getRowInfo(data interface{}, includeId bool) (rowInfo forDb) {
 	if len(parts) > 0 {
 		rowInfo.TableName = parts[len(parts)-1]
 	}
-	rowInfo.TableName = getTableName(data)
+	rowInfo.TableName = getTableName(data, schema)
 
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
