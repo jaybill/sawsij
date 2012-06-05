@@ -114,7 +114,8 @@ type RouteConfig struct {
 	Pattern string
 	Handler func(*http.Request, *AppScope, *RequestScope) (HandlerResponse, error)
 	Roles   []int
-	// TODO Allow explicit configuration of response type (JSON/XML/Etc)
+	// TODO Allow explicit configuration of response type (JSON/XML/Etc) (issue #4)
+	// TODO Allow specification of url params /value/value/value or /key/value/key/value/key/value (issue #5)
 }
 
 // Route takes route config and sets up a handler. This is the primary means by which applications interact with the framework.
@@ -207,7 +208,7 @@ func Route(rcfg RouteConfig) {
 			} else {
 				switch returnType {
 				case RT_XML:
-					//TODO Return actual XML here
+					//TODO Return actual XML here (issue #6)
 					w.Header().Set("Content-Type", "text/xml")
 					fmt.Fprintf(w, "%s", xml.Header)
 					log.Print("returning xml")
@@ -322,7 +323,7 @@ func Configure(as *AppSetup, basePath string) (err error) {
 		log.Fatal(err)
 	}
 
-	// TODO Check to see that database version matches the version specified in the code. Throw error and do not start.
+	// TODO Check to see that database version matches the version specified in the code. Throw error and do not start. (issue #7)
 
 	key, err := c.Get("encryption.key")
 	if err != nil {
