@@ -319,6 +319,8 @@ func GetUserInput(prompt string, defaultAnswer string) (answer string, err error
 
 // Copies file source to destination dest.
 func CopyFile(source string, dest string) (err error) {
+	//TODO This ought to be replaced with something that uses filepath.Walk() http://golang.org/pkg/path/filepath/#Walk (issue #2)
+	
 	sf, err := os.Open(source)
 	if err != nil {
 		return err
@@ -375,6 +377,7 @@ func CopyDir(source string, dest string) (err error) {
 
 		sfp := source + "/" + entry.Name()
 		dfp := dest + "/" + entry.Name()
+		// TODO Check for symlinks (issue #3)		
 		if entry.IsDir() {
 			err = CopyDir(sfp, dfp)
 			if err != nil {
