@@ -29,9 +29,22 @@ const (
 // like the base path.
 type AppScope struct {
 	Config   *yaml.File
-	Db       *sql.DB
+	Db       *DbSetup
 	BasePath string
 	Setup    *AppSetup
+}
+
+// A DbSetup is used to store a reference to the database connection and schema information.
+type DbSetup struct {
+	Db            *sql.DB
+	DefaultSchema string
+	Schemas       []Schema
+}
+
+// A Schema is used to store schema information, like the schema name and what version it is.
+type Schema struct {
+	Name    string
+	Version int64
 }
 
 // A RequestScope is sent to handler functions and contains session and derived URL information.
@@ -318,11 +331,34 @@ func Configure(as *AppSetup, basePath string) (err error) {
 		log.Fatal(err)
 	}
 
+	defaultSchema, err := c.Get("database.default_schema")
+	if err != nil {
+		log.Fatal(err)
+	}
+	
+	schemasN, err := yaml.Child(c.Root, ".database.schemas")
+	if err != nil {
+		log.Print(err)
+	}
+	var aSchs []Schema
+	if schemasN != nil {
+		schemas := schemasN.(yaml.Map)
+		
+		for schema, version := range schemas {
+			log.Printf("Schema: %v - Version: %v", schema, version)
+			
+			aSchs = append(aSchs,Schema{Name: string(schema) ,Version: 2})
+		}
+	} else {
+		log.Fatal("No schemas defined in config.yaml")
+	}
+
 	db, err := sql.Open(driver, connect)
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	appScope.Db = &DbSetup{Db: db,DefaultSchema: defaultSchema,Schemas: aSchs}
+	log.Printf("Db: %+v",appScope.Db)
 	// TODO Check to see that database version matches the version specified in the code. Throw error and do not start. (issue #7)
 
 	key, err := c.Get("encryption.key")
@@ -332,7 +368,7 @@ func Configure(as *AppSetup, basePath string) (err error) {
 
 	store = sessions.NewCookieStore([]byte(key))
 
-	appScope.Db = db
+	
 	log.Print("Static dir is [" + appScope.BasePath + "/static" + "]")
 	http.HandleFunc("/static/", staticHandler)
 

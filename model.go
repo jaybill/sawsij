@@ -4,14 +4,12 @@
 
 package sawsij
 
-import (
-	"database/sql"
-
+import (	
 	"fmt"
-	_ "github.com/bmizerany/pq"
 	"log"
 	"reflect"
 	"strings"
+	"time"
 )
 
 // The Model struct is intended to provide something analagous to a lightweight ORM, though not quite. 
@@ -36,14 +34,21 @@ import (
 // As currently implemented, both your table and your struct must have an identity to do anything useful. 
 // ("join" tables being the exception)
 type Model struct {
-	Db     *sql.DB
+	Db     *DbSetup
 	Schema string
+}
+
+// DbVersion is a type representing the db_version table, which must exist in any schema you plan to use with 
+// "sawsijcmd migrate"
+type SawsijDbVersion struct {
+	Id    int64
+	RanOn time.Time
 }
 
 // Update expects a pointer to a struct that represents a row in your database. The "Id" field of the struct will be used in the where clause.
 func (m *Model) Update(data interface{}) (err error) {
 
-	rowInfo := getRowInfo(data, false, m.Schema)
+	rowInfo := m.getRowInfo(data, false)
 	holders := make([]string, len(rowInfo.Keys))
 
 	for i := 0; i < len(rowInfo.Keys); i++ {
@@ -53,7 +58,7 @@ func (m *Model) Update(data interface{}) (err error) {
 	query := fmt.Sprintf("UPDATE %q SET %v WHERE id=%d", rowInfo.TableName, strings.Join(holders, ","), rowInfo.Id)
 	log.Printf("Query: %q", query)
 
-	_, err = m.Db.Exec(query, rowInfo.Vals...)
+	_, err = m.Db.Db.Exec(query, rowInfo.Vals...)
 	if err != nil {
 		log.Print(err)
 	}
@@ -65,7 +70,7 @@ func (m *Model) Update(data interface{}) (err error) {
 // identity value if the row is successfully inserted.
 func (m *Model) Insert(data interface{}) (err error) {
 
-	rowInfo := getRowInfo(data, false, m.Schema)
+	rowInfo := m.getRowInfo(data, false)
 	holders := make([]string, len(rowInfo.Keys))
 
 	for i := 0; i < len(rowInfo.Keys); i++ {
@@ -76,13 +81,13 @@ func (m *Model) Insert(data interface{}) (err error) {
 
 	log.Printf("Query: %q", query)
 	log.Printf("Data: %+v", data)
-	_, err = m.Db.Exec(query, rowInfo.Vals...)
+	_, err = m.Db.Db.Exec(query, rowInfo.Vals...)
 	if err != nil {
 		log.Print(err)
 	} else {
 		if rowInfo.IdIndex != -1 {
 			idq := fmt.Sprintf("select currval('%v_id_seq')", rowInfo.TableName)
-			row := m.Db.QueryRow(idq)
+			row := m.Db.Db.QueryRow(idq)
 			if err != nil {
 				log.Print(err)
 			} else {
@@ -104,12 +109,12 @@ func (m *Model) Insert(data interface{}) (err error) {
 // Delete takes a pointer to a struct and deletes the row where the id in the table is the Id of the struct.
 // Note that you don't need to have acquired this struct from a row, passing in a pointer to something like {Id: 4} will totally work.
 func (m *Model) Delete(data interface{}) (err error) {
-	rowInfo := getRowInfo(data, false, m.Schema)
+	rowInfo := m.getRowInfo(data, false)
 	if rowInfo.Id != -1 {
 		query := fmt.Sprintf("DELETE FROM %q WHERE id=%d", rowInfo.TableName, rowInfo.Id)
 		log.Printf("Query: %q", query)
 
-		_, err = m.Db.Exec(query)
+		_, err = m.Db.Db.Exec(query)
 		if err != nil {
 			log.Print(err)
 		}
@@ -119,14 +124,14 @@ func (m *Model) Delete(data interface{}) (err error) {
 
 // Fetch returns a single row where the id in the table is the Id of the struct.
 func (m *Model) Fetch(data interface{}) (err error) {
-	rowInfo := getRowInfo(data, false, m.Schema)
+	rowInfo := m.getRowInfo(data, false)
 	cols := make([]interface{}, 0)
 	retRow := reflect.ValueOf(data).Elem()
 	dataType := retRow.Type()
 	if rowInfo.Id != -1 {
 		query := fmt.Sprintf("SELECT %v FROM %q WHERE id=%d", strings.Join(rowInfo.Keys, ","), rowInfo.TableName, rowInfo.Id)
 		log.Printf("Query: %q", query)
-		row := m.Db.QueryRow(query)
+		row := m.Db.Db.QueryRow(query)
 
 		for i := 0; i < dataType.NumField(); i++ {
 			f := retRow.Field(i)
@@ -159,7 +164,7 @@ type Query struct {
 // the query.
 func (m *Model) FetchAll(data interface{}, q Query, args ...interface{}) (ents []interface{}, err error) {
 	ents = make([]interface{}, 0)
-	rowInfo := getRowInfo(data, true, m.Schema)
+	rowInfo := m.getRowInfo(data, true)
 
 	retRow := reflect.ValueOf(data).Elem()
 	dataType := retRow.Type()
@@ -184,7 +189,7 @@ func (m *Model) FetchAll(data interface{}, q Query, args ...interface{}) (ents [
 
 	log.Printf("Query: %q", query)
 
-	rows, err := m.Db.Query(query, args...)
+	rows, err := m.Db.Db.Query(query, args...)
 	if err == nil {
 		for rows.Next() {
 			ent := reflect.New(t)
@@ -214,7 +219,7 @@ type forDb struct {
 	TableName string
 }
 
-func getTableName(data interface{}, schema string) (tableName string) {
+func (m *Model) getTableName(data interface{}) (tableName string) {
 	s := reflect.ValueOf(data).Elem()
 	typeOfT := s.Type()
 
@@ -224,13 +229,15 @@ func getTableName(data interface{}, schema string) (tableName string) {
 		tableName = parts[len(parts)-1]
 	}
 	tableName = MakeDbName(tableName)
-	if schema != "" {
-		tableName += schema + "." + tableName
+	if m.Schema != "" {
+		tableName += m.Schema + "." + tableName
+	} else {
+		tableName += m.Db.DefaultSchema + "." + tableName
 	}
 	return
 }
 
-func getRowInfo(data interface{}, includeId bool, schema string) (rowInfo forDb) {
+func (m *Model) getRowInfo(data interface{}, includeId bool) (rowInfo forDb) {
 	s := reflect.ValueOf(data).Elem()
 	typeOfT := s.Type()
 	rowInfo.Vals = make([]interface{}, 0)
@@ -242,7 +249,7 @@ func getRowInfo(data interface{}, includeId bool, schema string) (rowInfo forDb)
 	if len(parts) > 0 {
 		rowInfo.TableName = parts[len(parts)-1]
 	}
-	rowInfo.TableName = getTableName(data, schema)
+	rowInfo.TableName = m.getTableName(data)
 
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
