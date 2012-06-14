@@ -16,7 +16,7 @@ import (
 	"github.com/kylelemons/go-gypsy/yaml"
 	"log"
 	"net/http"
-	"os"
+	"os"	
 	"strings"
 	"text/template"
 )
@@ -66,10 +66,13 @@ type User interface {
 }
 
 // AppSetup is used by Configure() to set up callback functions that your application implements to extend the framework
-// functionality. It servese as the basis of the "plugin" system. The only exception is GetUser(), which your app must implement
+// functionality. It serves as the basis of the "plugin" system. The only exception is GetUser(), which your app must implement
 // for the framework to function. The GetUser function supplies a type conforming to the User specification. It's used for auth and 
 // session mangement.
+// You can also set an array of Schemas here to check versions for database migrations.
 type AppSetup struct {
+	DefaultSchema string
+	Schemas []Schema
 	GetUser func(username string, a *AppScope) User
 }
 
@@ -331,35 +334,37 @@ func Configure(as *AppSetup, basePath string) (err error) {
 		log.Fatal(err)
 	}
 
-	defaultSchema, err := c.Get("database.default_schema")
-	if err != nil {
-		log.Fatal(err)
-	}
-	
-	schemasN, err := yaml.Child(c.Root, ".database.schemas")
-	if err != nil {
-		log.Print(err)
-	}
-	var aSchs []Schema
-	if schemasN != nil {
-		schemas := schemasN.(yaml.Map)
-		
-		for schema, version := range schemas {
-			log.Printf("Schema: %v - Version: %v", schema, version)
-			
-			aSchs = append(aSchs,Schema{Name: string(schema) ,Version: 2})
-		}
-	} else {
-		log.Fatal("No schemas defined in config.yaml")
-	}
-
 	db, err := sql.Open(driver, connect)
 	if err != nil {
 		log.Fatal(err)
 	}
-	appScope.Db = &DbSetup{Db: db,DefaultSchema: defaultSchema,Schemas: aSchs}
-	log.Printf("Db: %+v",appScope.Db)
-	// TODO Check to see that database version matches the version specified in the code. Throw error and do not start. (issue #7)
+
+	
+	if as.Schemas != nil {
+		
+		for _ , schema := range as.Schemas {
+			
+			// TODO Remove hardcoded sql string, replace with driver based lookup	
+			query := fmt.Sprintf("SELECT id from %v.sawsij_db_version ORDER BY ran_on DESC LIMIT 1;", schema.Name)
+			row := db.QueryRow(query)
+			var dbversion int64 = 0
+
+			err = row.Scan(&dbversion)
+			if err != nil {
+				log.Fatal(err)
+			} else {
+				log.Printf("Schema: %v App: %v Db: %v", schema.Name, schema.Version, dbversion)
+				if schema.Version != dbversion {
+					log.Fatal("Schema/App version mismatch. Please run sawsijcmd migrate [appdir] to update the database.")
+				}
+			}
+
+		}
+		appScope.Db = &DbSetup{Db: db, DefaultSchema: as.DefaultSchema, Schemas: as.Schemas}
+
+	} else {
+		log.Fatal("No schemas defined by application.")
+	}
 
 	key, err := c.Get("encryption.key")
 	if err != nil {
@@ -368,7 +373,6 @@ func Configure(as *AppSetup, basePath string) (err error) {
 
 	store = sessions.NewCookieStore([]byte(key))
 
-	
 	log.Print("Static dir is [" + appScope.BasePath + "/static" + "]")
 	http.HandleFunc("/static/", staticHandler)
 
