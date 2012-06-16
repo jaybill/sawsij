@@ -16,7 +16,7 @@ import (
 	"github.com/kylelemons/go-gypsy/yaml"
 	"log"
 	"net/http"
-	"os"
+	"os"	
 	"strings"
 	"text/template"
 )
@@ -29,9 +29,22 @@ const (
 // like the base path.
 type AppScope struct {
 	Config   *yaml.File
-	Db       *sql.DB
+	Db       *DbSetup
 	BasePath string
 	Setup    *AppSetup
+}
+
+// A DbSetup is used to store a reference to the database connection and schema information.
+type DbSetup struct {
+	Db            *sql.DB
+	DefaultSchema string
+	Schemas       []Schema
+}
+
+// A Schema is used to store schema information, like the schema name and what version it is.
+type Schema struct {
+	Name    string
+	Version int64
 }
 
 // A RequestScope is sent to handler functions and contains session and derived URL information.
@@ -53,10 +66,13 @@ type User interface {
 }
 
 // AppSetup is used by Configure() to set up callback functions that your application implements to extend the framework
-// functionality. It servese as the basis of the "plugin" system. The only exception is GetUser(), which your app must implement
+// functionality. It serves as the basis of the "plugin" system. The only exception is GetUser(), which your app must implement
 // for the framework to function. The GetUser function supplies a type conforming to the User specification. It's used for auth and 
 // session mangement.
+// You can also set an array of Schemas here to check versions for database migrations.
 type AppSetup struct {
+	DefaultSchema string
+	Schemas []Schema
 	GetUser func(username string, a *AppScope) User
 }
 
@@ -114,6 +130,8 @@ type RouteConfig struct {
 	Pattern string
 	Handler func(*http.Request, *AppScope, *RequestScope) (HandlerResponse, error)
 	Roles   []int
+	// TODO Allow explicit configuration of response type (JSON/XML/Etc) (issue #4)
+	// TODO Allow specification of url params /value/value/value or /key/value/key/value/key/value (issue #5)
 }
 
 // Route takes route config and sets up a handler. This is the primary means by which applications interact with the framework.
@@ -206,7 +224,7 @@ func Route(rcfg RouteConfig) {
 			} else {
 				switch returnType {
 				case RT_XML:
-					//TODO Return actual XML here
+					//TODO Return actual XML here (issue #6)
 					w.Header().Set("Content-Type", "text/xml")
 					fmt.Fprintf(w, "%s", xml.Header)
 					log.Print("returning xml")
@@ -321,6 +339,33 @@ func Configure(as *AppSetup, basePath string) (err error) {
 		log.Fatal(err)
 	}
 
+	
+	if as.Schemas != nil {
+		
+		for _ , schema := range as.Schemas {
+			
+			// TODO Remove hardcoded sql string, replace with driver based lookup	
+			query := fmt.Sprintf("SELECT id from %v.sawsij_db_version ORDER BY ran_on DESC LIMIT 1;", schema.Name)
+			row := db.QueryRow(query)
+			var dbversion int64 = 0
+
+			err = row.Scan(&dbversion)
+			if err != nil {
+				log.Fatal(err)
+			} else {
+				log.Printf("Schema: %v App: %v Db: %v", schema.Name, schema.Version, dbversion)
+				if schema.Version != dbversion {
+					log.Fatal("Schema/App version mismatch. Please run sawsijcmd migrate [appdir] to update the database.")
+				}
+			}
+
+		}
+		appScope.Db = &DbSetup{Db: db, DefaultSchema: as.DefaultSchema, Schemas: as.Schemas}
+
+	} else {
+		log.Fatal("No schemas defined by application.")
+	}
+
 	key, err := c.Get("encryption.key")
 	if err != nil {
 		log.Fatal(err)
@@ -328,7 +373,6 @@ func Configure(as *AppSetup, basePath string) (err error) {
 
 	store = sessions.NewCookieStore([]byte(key))
 
-	appScope.Db = db
 	log.Print("Static dir is [" + appScope.BasePath + "/static" + "]")
 	http.HandleFunc("/static/", staticHandler)
 
