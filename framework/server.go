@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package sawsij provides a small, opinionated web framework.
-package sawsij
+package framework
 
 import (
 	"code.google.com/p/gorilla/sessions"
