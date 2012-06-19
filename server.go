@@ -19,6 +19,7 @@ import (
 	"os"
 	"strings"
 	"text/template"
+	"time"
 )
 
 const (
@@ -352,7 +353,7 @@ func Configure(as *AppSetup, basePath string) (err error) {
 
 		for _, schema := range allSchemas {
 			// TODO Remove hardcoded sql string, replace with driver based lookup	
-			query := fmt.Sprintf("SELECT id from %v.sawsij_db_version ORDER BY ran_on DESC LIMIT 1;", schema.Name)
+			query := fmt.Sprintf("SELECT version_id from %v.sawsij_db_version ORDER BY ran_on DESC LIMIT 1;", schema.Name)
 			row := db.QueryRow(query)
 			var dbversion int64 = 0
 
@@ -375,6 +376,8 @@ func Configure(as *AppSetup, basePath string) (err error) {
 							if err != nil{
 								log.Fatal(err)
 							}
+							dbv := &SawsijDbVersion{VersionId: i, RanOn: time.Now()}
+							m.Insert(dbv)
 							
 						}
 						viewfile := fmt.Sprintf("%v/sql/objects/%v_%v_views.sql", appScope.BasePath, driver, schema.Name)
