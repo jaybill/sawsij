@@ -1,0 +1,4 @@
+build=/home/jaybill/workspace_go/sawsij/build
+sawsijcmd=/home/jaybill/workspace_go/sawsij/bin/sawsijcmd
+sawsij-seed=/home/jaybill/workspace_go/sawsij-seed
+verson_template=/home/jaybill/workspace_go/sawsij/src/bitbucket.org/jaybill/sawsijcmd/VERSION
