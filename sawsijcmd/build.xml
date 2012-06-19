@@ -7,6 +7,8 @@ license that can be found in the LICENSE file.
 
 -->
     <description>build/deploy for sawsijcmd</description>   
+
+	<taskdef resource="net/sourceforge/ant4hg/taskdefs/antlib.xml" />
     
     <!-- TARGET: message -->
 	<!-- displays a help message with available targets -->
@@ -30,13 +32,13 @@ license that can be found in the LICENSE file.
 	    <echo message="Building sawsij..."/>
     	<exec executable="go" >
 			<arg value="install"/>	
-	  		<arg value="bitbucket.org/jaybill/sawsij"/>
+	  		<arg value="bitbucket.org/jaybill/sawsij/framework"/>
 		</exec>
 		
 	    <echo message="Building sawsijcmd..."/>
     	<exec executable="go" >
 			<arg value="install"/>	
-	  		<arg value="bitbucket.org/jaybill/sawsijcmd"/>
+	  		<arg value="bitbucket.org/jaybill/sawsij/sawsijcmd"/>
 		</exec>
 		
 		<delete dir="${build}"/> 
@@ -56,7 +58,15 @@ license that can be found in the LICENSE file.
 		  <filterset>
 		  		<filter token="VERSION" value="${tag}"/>
 		  </filterset>
-		</copy>			
+		</copy>	
+		
+		<echo message="Tagging build ${tag}"/>
+		<exec executable="hg" >
+			<arg value="tag"/>	
+	  		<arg value="${tag}"/>
+		</exec>		
+        <hg cmd="push" dir="${basedir}"/>        
+		<zip destfile="${dist}/${distfile}" basedir="${build}"/>
 
 				
 	</target>	
