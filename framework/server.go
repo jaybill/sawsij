@@ -352,7 +352,7 @@ func Configure(as *AppSetup, basePath string) (err error) {
 	if err == nil {
 
 		for _, schema := range allSchemas {
-			// TODO Remove hardcoded sql string, replace with driver based lookup	
+			// TODO Remove hardcoded sql string, replace with driver based lookup (issue #11)
 			query := fmt.Sprintf("SELECT version_id from %v.sawsij_db_version ORDER BY ran_on DESC LIMIT 1;", schema.Name)
 			row := db.QueryRow(query)
 			var dbversion int64 = 0
@@ -385,8 +385,7 @@ func Configure(as *AppSetup, basePath string) (err error) {
 						err = m.RunScript(viewfile)
 						if err != nil{
 							log.Fatal(err)
-						}
-						// TODO update dbversion table to reflect successful migration
+						}						
 
 					} else {
 						log.Fatal("Schema/App version mismatch. Please run migrate to update the database.")
