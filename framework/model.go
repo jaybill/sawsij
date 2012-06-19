@@ -281,7 +281,7 @@ func (m *Model) RunScript(dbscript string) (err error) {
 	if err != nil {
 		return
 	} else {
-		// TODO This should be in a transaction and roll back on errors.
+		
 		t,err := m.Db.Db.Begin()
 		
 		sQuery := string(bQuery)

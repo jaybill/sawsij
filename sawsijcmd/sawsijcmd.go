@@ -269,7 +269,7 @@ func new() {
 			itWorked = false
 		}
 		
-		// TODO Remove hardcoded sql string, replace with driver based lookup
+		// TODO Remove hardcoded sql string, replace with driver based lookup (issue #11)
 		tcq := "SELECT count(*) as tables FROM information_schema.tables WHERE table_schema = $1;"
 		row := db.QueryRow(tcq, config["schema"])
 		tcount := 0
