@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"crypto/md5"
 	"fmt"
+	"github.com/kylelemons/go-gypsy/yaml"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -403,4 +404,39 @@ type SawsijError struct {
 // Returns the error message defined in What as a string
 func (e *SawsijError) Error() string {
 	return e.What
+}
+
+// Reads dbversions file specified by filename and returns schema information
+func ParseDbVersionsFile(dBconfigFilename string) (defaultSchema string, allSchemas []Schema, err error) {
+
+	dbvc, err := yaml.ReadFile(dBconfigFilename)
+	if err != nil {
+		err = &SawsijError{fmt.Sprintf("Can't read %v", dBconfigFilename)}
+		return
+	}
+
+	defaultSchema, err = dbvc.Get("default_schema")
+	if err != nil {
+		err = &SawsijError{fmt.Sprintf("default_schema not defined in %v", dBconfigFilename)}
+		return
+	}
+
+	schemasN, err := yaml.Child(dbvc.Root, ".schema_versions")
+	if err != nil {
+		err = &SawsijError{fmt.Sprintf("Error reading schema_versions in %v", dBconfigFilename)}
+		return
+	}
+
+	if schemasN != nil {
+		schemas := schemasN.(yaml.Map)
+		for schema, version := range schemas {
+			sV, _ := strconv.ParseInt(fmt.Sprintf("%v", version), 0, 0)
+			allSchemas = append(allSchemas, Schema{Name: string(schema), Version: sV})
+		}
+	} else {
+		err = &SawsijError{fmt.Sprintf("No schemas defined in %v", dBconfigFilename)}
+		return
+	}
+
+	return
 }

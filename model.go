@@ -6,10 +6,12 @@ package sawsij
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"reflect"
 	"strings"
 	"time"
+	_"database/sql"
 )
 
 // The Model struct is intended to provide something analagous to a lightweight ORM, though not quite. 
@@ -267,4 +269,36 @@ func (m *Model) getRowInfo(data interface{}, includeId bool) (rowInfo forDb) {
 
 	}
 	return
+}
+
+func (m *Model) RunScript(dbscript string) (err error) {
+
+	bQuery, err := ioutil.ReadFile(dbscript)
+	if err != nil {
+		return
+	} else {
+		// TODO This should be in a transaction and roll back on errors.
+		t,err := m.Db.Db.Begin()
+		
+		sQuery := string(bQuery)
+		queries := strings.Split(sQuery, ";")
+		log.Printf("File has %v queries.", len(queries))
+		for _, query := range queries {
+			query = strings.TrimSpace(query)
+			if query != "" {
+				log.Printf("Query: %q\n", query)
+				_, err = t.Exec(query)
+				if err != nil {
+					t.Rollback()
+					return err
+				}
+			}
+		}
+		err = t.Commit()
+		if err != nil{
+			return err
+		}
+	}
+	return
+
 }
