@@ -16,7 +16,7 @@ import (
 	"github.com/kylelemons/go-gypsy/yaml"
 	"log"
 	"net/http"
-	"os"	
+	"os"
 	"strings"
 	"text/template"
 )
@@ -69,10 +69,7 @@ type User interface {
 // functionality. It serves as the basis of the "plugin" system. The only exception is GetUser(), which your app must implement
 // for the framework to function. The GetUser function supplies a type conforming to the User specification. It's used for auth and 
 // session mangement.
-// You can also set an array of Schemas here to check versions for database migrations.
 type AppSetup struct {
-	DefaultSchema string
-	Schemas []Schema
 	GetUser func(username string, a *AppScope) User
 }
 
@@ -300,7 +297,7 @@ func staticHandler(w http.ResponseWriter, r *http.Request) {
 // It will also set up a static handler for any files in [app_root_dir]/static, which can be used to serve up images, CSS and JavaScript. 
 // Configure is the first thing your application will call in its "main" method.
 func Configure(as *AppSetup, basePath string) (err error) {
-
+	migrateAndExit := false
 	a := AppScope{Setup: as}
 	appScope = &a
 	log.Printf("Basepath is currently %q", basePath)
@@ -313,6 +310,15 @@ func Configure(as *AppSetup, basePath string) (err error) {
 		appScope.BasePath = string(os.Args[1])
 	} else {
 		appScope.BasePath = basePath
+	}
+
+	if len(os.Args) == 3 {
+		switch os.Args[2] {
+		case "migrate":
+			migrateAndExit = true
+		default:
+			log.Printf("Command line option %q not valid.", os.Args[2])
+		}
 	}
 
 	configFilename := appScope.BasePath + "/etc/config.yaml"
@@ -339,11 +345,12 @@ func Configure(as *AppSetup, basePath string) (err error) {
 		log.Fatal(err)
 	}
 
-	
-	if as.Schemas != nil {
-		
-		for _ , schema := range as.Schemas {
-			
+	dBconfigFilename := appScope.BasePath + "/etc/dbversions.yaml"
+	defaultSchema, allSchemas, err := ParseDbVersionsFile(dBconfigFilename)
+
+	if err == nil {
+
+		for _, schema := range allSchemas {
 			// TODO Remove hardcoded sql string, replace with driver based lookup	
 			query := fmt.Sprintf("SELECT id from %v.sawsij_db_version ORDER BY ran_on DESC LIMIT 1;", schema.Name)
 			row := db.QueryRow(query)
@@ -355,15 +362,46 @@ func Configure(as *AppSetup, basePath string) (err error) {
 			} else {
 				log.Printf("Schema: %v App: %v Db: %v", schema.Name, schema.Version, dbversion)
 				if schema.Version != dbversion {
-					log.Fatal("Schema/App version mismatch. Please run sawsijcmd migrate [appdir] to update the database.")
+
+					if migrateAndExit {
+						dbs := &DbSetup{Db: db}
+						m := &Model{Db:dbs , Schema: schema.Name}
+						log.Printf("Running database migration on %q", schema.Name)
+						for i := dbversion + 1; i <= schema.Version; i++ {
+							scriptfile := fmt.Sprintf("%v/sql/changes/%v_%v_%04d.sql", appScope.BasePath, driver, schema.Name, i)
+							log.Printf("Running script %v", scriptfile)
+							
+							err = m.RunScript(scriptfile)
+							if err != nil{
+								log.Fatal(err)
+							}
+							
+						}
+						viewfile := fmt.Sprintf("%v/sql/objects/%v_%v_views.sql", appScope.BasePath, driver, schema.Name)
+						log.Printf("Running script %v", viewfile)
+						err = m.RunScript(viewfile)
+						if err != nil{
+							log.Fatal(err)
+						}
+						// TODO update dbversion table to reflect successful migration
+
+					} else {
+						log.Fatal("Schema/App version mismatch. Please run migrate to update the database.")
+					}
+
 				}
 			}
 
 		}
-		appScope.Db = &DbSetup{Db: db, DefaultSchema: as.DefaultSchema, Schemas: as.Schemas}
+		appScope.Db = &DbSetup{Db: db, DefaultSchema: defaultSchema, Schemas: allSchemas}
+		if migrateAndExit {
+			log.Print("All schemas updated. Exiting.")
+			os.Exit(0)
+		}
+		
 
 	} else {
-		log.Fatal("No schemas defined by application.")
+		log.Fatal(err)
 	}
 
 	key, err := c.Get("encryption.key")
