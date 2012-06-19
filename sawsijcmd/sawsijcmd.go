@@ -78,7 +78,7 @@ func main() {
 	case "new":
 		new()	
 	case "crudify":
-		// TODO create DAL and CRUD based on database table (issue #2)
+		// TODO create DAL and CRUD based on database table (issue #12)
 	default:
 		fmt.Printf("Command %q not recognized.\n", command)
 		os.Exit(1)
