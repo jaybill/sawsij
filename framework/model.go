@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package sawsij
+package framework
 
 import (
 	"fmt"
@@ -43,7 +43,7 @@ type Model struct {
 // DbVersion is a type representing the db_version table, which must exist in any schema you plan to use with 
 // "sawsijcmd migrate"
 type SawsijDbVersion struct {
-	Id    int64
+	VersionId    int64
 	RanOn time.Time
 }
 
@@ -79,7 +79,7 @@ func (m *Model) Insert(data interface{}) (err error) {
 		holders[i] = fmt.Sprintf("$%v", i+1)
 	}
 
-	query := fmt.Sprintf("INSERT INTO %q(%v) VALUES (%v)", rowInfo.TableName, strings.Join(rowInfo.Keys, ","), strings.Join(holders, ","))
+	query := fmt.Sprintf("INSERT INTO %v (%v) VALUES (%v)", rowInfo.TableName, strings.Join(rowInfo.Keys, ","), strings.Join(holders, ","))
 
 	log.Printf("Query: %q", query)
 	log.Printf("Data: %+v", data)
@@ -232,9 +232,9 @@ func (m *Model) getTableName(data interface{}) (tableName string) {
 	}
 	tableName = MakeDbName(tableName)
 	if m.Schema != "" {
-		tableName += m.Schema + "." + tableName
+		tableName = m.Schema + "." + tableName
 	} else {
-		tableName += m.Db.DefaultSchema + "." + tableName
+		tableName = m.Db.DefaultSchema + "." + tableName
 	}
 	return
 }
@@ -270,28 +270,39 @@ func (m *Model) getRowInfo(data interface{}, includeId bool) (rowInfo forDb) {
 	}
 	return
 }
-
+// RunScript takes a file path to a sql script, reads the file and runs it against the database/schema. 
+// Queries will be run one at a time in a transaction. If there's any kind of error, the whole transaction
+// will be rolled back.
+// Queries must be terminated by ";" and you must use C style comments, not --. (This limitation will 
+// probably be removed at some point.)
 func (m *Model) RunScript(dbscript string) (err error) {
 
 	bQuery, err := ioutil.ReadFile(dbscript)
 	if err != nil {
 		return
 	} else {
-		// TODO This should be in a transaction and roll back on errors.
+		
 		t,err := m.Db.Db.Begin()
 		
 		sQuery := string(bQuery)
-		queries := strings.Split(sQuery, ";")
-		log.Printf("File has %v queries.", len(queries))
+		queries := strings.Split(sQuery, ";")		
 		for _, query := range queries {
 			query = strings.TrimSpace(query)
-			if query != "" {
-				log.Printf("Query: %q\n", query)
+			var isComment bool = false
+			
+			if strings.HasPrefix(query,"/*") && strings.HasSuffix(query,"*/"){
+				isComment = true
+			}			
+			
+			if query != "" && !isComment{
+				
+				log.Printf("Query: %q", query)
 				_, err = t.Exec(query)
 				if err != nil {
 					t.Rollback()
 					return err
 				}
+				
 			}
 		}
 		err = t.Commit()

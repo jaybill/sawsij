@@ -1,0 +1,65 @@
+<project name="sawsijcmd" default="message" basedir=".">	
+<!--
+
+Copyright 2012 J. William McCarthy. All rights reserved.
+Use of this source code is governed by a BSD-style
+license that can be found in the LICENSE file.
+
+-->
+    <description>build/deploy for sawsijcmd</description>   
+    
+    <!-- TARGET: message -->
+	<!-- displays a help message with available targets -->
+	<target name="message">
+		<echo message="Available targets are 'build'"/>
+		<echo message="build: Build project and create archive."/>
+	</target>	
+
+    <propertyfile file="build.properties" comment="Build properties for ${ant.project.name}">  
+		<entry key="build" type="string" default=""/>
+		<entry key="sawsijcmd" type="string" default=""/>
+		<entry key="sawsij-seed" type="string" default=""/>
+		<entry key="version_template" type="string" default=""/>
+	</propertyfile>  
+	<loadproperties srcfile="build.properties" />
+
+    <!-- TARGET: build -->
+	<!-- Build project and create archive. -->
+	<target name="build">
+	
+	    <echo message="Building sawsij..."/>
+    	<exec executable="go" >
+			<arg value="install"/>	
+	  		<arg value="bitbucket.org/jaybill/sawsij"/>
+		</exec>
+		
+	    <echo message="Building sawsijcmd..."/>
+    	<exec executable="go" >
+			<arg value="install"/>	
+	  		<arg value="bitbucket.org/jaybill/sawsijcmd"/>
+		</exec>
+		
+		<delete dir="${build}"/> 
+		<mkdir dir="${build}/sawsij/bin"/>
+		<mkdir dir="${build}/sawsij/seed"/>
+		<copy file="${sawsijcmd}" todir="${build}/sawsij/bin"/>
+		<copy todir="${build}/sawsij/seed"><fileset dir="${sawsij-seed}"/></copy>
+
+
+
+        <tstamp/>
+        <property name="tag" value="${DSTAMP}-${TSTAMP}"/>
+		<property name="distfile" value="${ant.project.name}-${tag}.zip"/>	
+		
+        <copy todir="${build}/sawsij">
+		 <fileset dir="${version_template}" includes="VERSION"/>
+		  <filterset>
+		  		<filter token="VERSION" value="${tag}"/>
+		  </filterset>
+		</copy>			
+
+				
+	</target>	
+
+
+</project>

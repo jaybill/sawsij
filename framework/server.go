@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package sawsij provides a small, opinionated web framework.
-package sawsij
+package framework
 
 import (
 	"code.google.com/p/gorilla/sessions"
@@ -19,6 +19,7 @@ import (
 	"os"
 	"strings"
 	"text/template"
+	"time"
 )
 
 const (
@@ -351,8 +352,8 @@ func Configure(as *AppSetup, basePath string) (err error) {
 	if err == nil {
 
 		for _, schema := range allSchemas {
-			// TODO Remove hardcoded sql string, replace with driver based lookup	
-			query := fmt.Sprintf("SELECT id from %v.sawsij_db_version ORDER BY ran_on DESC LIMIT 1;", schema.Name)
+			// TODO Remove hardcoded sql string, replace with driver based lookup (issue #11)
+			query := fmt.Sprintf("SELECT version_id from %v.sawsij_db_version ORDER BY ran_on DESC LIMIT 1;", schema.Name)
 			row := db.QueryRow(query)
 			var dbversion int64 = 0
 
@@ -375,6 +376,8 @@ func Configure(as *AppSetup, basePath string) (err error) {
 							if err != nil{
 								log.Fatal(err)
 							}
+							dbv := &SawsijDbVersion{VersionId: i, RanOn: time.Now()}
+							m.Insert(dbv)
 							
 						}
 						viewfile := fmt.Sprintf("%v/sql/objects/%v_%v_views.sql", appScope.BasePath, driver, schema.Name)
@@ -382,8 +385,7 @@ func Configure(as *AppSetup, basePath string) (err error) {
 						err = m.RunScript(viewfile)
 						if err != nil{
 							log.Fatal(err)
-						}
-						// TODO update dbversion table to reflect successful migration
+						}						
 
 					} else {
 						log.Fatal("Schema/App version mismatch. Please run migrate to update the database.")
