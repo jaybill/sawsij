@@ -41,7 +41,7 @@ type Model struct {
 }
 
 // DbVersion is a type representing the db_version table, which must exist in any schema you plan to use with 
-// "sawsijcmd migrate"
+// "[appserver] [directory] migrate"
 type SawsijDbVersion struct {
 	VersionId    int64
 	RanOn time.Time
