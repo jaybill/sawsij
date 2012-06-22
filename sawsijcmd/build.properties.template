@@ -1,4 +1,5 @@
+#Build properties template for sawsijcmd
+#Tue, 19 Jun 2012 16:33:04 -0700
 build=/home/jaybill/workspace_go/sawsij/build
-sawsijcmd=/home/jaybill/workspace_go/sawsij/bin/sawsijcmd
-sawsij-seed=/home/jaybill/workspace_go/sawsij-seed
-verson_template=/home/jaybill/workspace_go/sawsij/src/bitbucket.org/jaybill/sawsijcmd/VERSION
+dist=/home/jaybill/workspace_go/sawsij/dist
+sawsijsrc=/home/jaybill/workspace_go/sawsij
