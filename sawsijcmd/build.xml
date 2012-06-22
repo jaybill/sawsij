@@ -7,59 +7,70 @@ license that can be found in the LICENSE file.
 
 -->
     <description>build/deploy for sawsijcmd</description>   
+
+	<taskdef resource="net/sourceforge/ant4hg/taskdefs/antlib.xml" />
     
     <!-- TARGET: message -->
 	<!-- displays a help message with available targets -->
 	<target name="message">
-		<echo message="Available targets are 'build'"/>
-		<echo message="build: Build project and create archive."/>
+		<echo message="Available targets are 'build' and 'dist'."/>
 	</target>	
 
     <propertyfile file="build.properties" comment="Build properties for ${ant.project.name}">  
 		<entry key="build" type="string" default=""/>
-		<entry key="sawsijcmd" type="string" default=""/>
-		<entry key="sawsij-seed" type="string" default=""/>
-		<entry key="version_template" type="string" default=""/>
+		<entry key="dist" type="string" default=""/>	
+		<entry key="sawsijsrc" type="string" default=""/>
 	</propertyfile>  
 	<loadproperties srcfile="build.properties" />
-
+	<property name="cmdsrc" value="${sawsijsrc}/src/bitbucket.org/jaybill/sawsij/sawsijcmd"/>
     <!-- TARGET: build -->
 	<!-- Build project and create archive. -->
-	<target name="build">
+	<target name="dobuild">
 	
 	    <echo message="Building sawsij..."/>
     	<exec executable="go" >
 			<arg value="install"/>	
-	  		<arg value="bitbucket.org/jaybill/sawsij"/>
+	  		<arg value="bitbucket.org/jaybill/sawsij/framework"/>
 		</exec>
 		
 	    <echo message="Building sawsijcmd..."/>
     	<exec executable="go" >
 			<arg value="install"/>	
-	  		<arg value="bitbucket.org/jaybill/sawsijcmd"/>
+	  		<arg value="bitbucket.org/jaybill/sawsij/sawsijcmd"/>
 		</exec>
 		
 		<delete dir="${build}"/> 
 		<mkdir dir="${build}/sawsij/bin"/>
 		<mkdir dir="${build}/sawsij/seed"/>
-		<copy file="${sawsijcmd}" todir="${build}/sawsij/bin"/>
-		<copy todir="${build}/sawsij/seed"><fileset dir="${sawsij-seed}"/></copy>
-
-
-
-        <tstamp/>
-        <property name="tag" value="${DSTAMP}-${TSTAMP}"/>
-		<property name="distfile" value="${ant.project.name}-${tag}.zip"/>	
-		
+		<copy file="${sawsijsrc}/bin/sawsijcmd" todir="${build}/sawsij/bin"/>
+		<copy todir="${build}/sawsij/seed"><fileset dir="${cmdsrc}/seed"/></copy>	
+					
+	</target>	
+	<target name="build">
+ 		<tstamp/>     
+		<property name="tag" value="${DSTAMP}-${TSTAMP}"/>   
+		<antcall target="dobuild"/>
+	</target>	
+	
+	<target name="dist">	
+	 	<tstamp/>     
+		<property name="tag" value="${DSTAMP}-${TSTAMP}"/>   
+		<antcall target="dobuild"/>
         <copy todir="${build}/sawsij">
-		 <fileset dir="${version_template}" includes="VERSION"/>
+		 <fileset dir="${cmdsrc}" includes="VERSION"/>
 		  <filterset>
 		  		<filter token="VERSION" value="${tag}"/>
 		  </filterset>
-		</copy>			
-
+		</copy>	
+		
+		<echo message="Tagging build ${tag}"/>
+		<exec executable="hg" >
+			<arg value="tag"/>	
+	  		<arg value="${tag}"/>
+		</exec>	
+		<property name="distfile" value="${ant.project.name}-${tag}.zip"/>		
+        <hg cmd="push" dir="${basedir}"/>        
+		<zip destfile="${dist}/${distfile}" basedir="${build}"/>	
 				
-	</target>	
-
-
+	</target>
 </project>
