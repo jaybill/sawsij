@@ -20,3 +20,6 @@ CREATE TABLE "{{ .schema }}"."user"  (
 ALTER TABLE "{{ .schema }}"."user"
 	ADD CONSTRAINT "UNIQUE_user_1"
 	UNIQUE ("username");
+
+INSERT INTO  "{{ .schema }}"."user"(username, password_hash, full_name, email, created_on, role) 
+	VALUES ('admin','{{ .password_hash }}', 'Administrator','{{ .admin_email }}' , now(), 3);

@@ -4,6 +4,8 @@ import (
 	"bitbucket.org/jaybill/sawsij/framework"
 	"database/sql"
 	"fmt"
+	"io"
+	"crypto/md5"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -147,6 +149,12 @@ func new() {
 	path, _ = framework.GetUserInput("Application path", path)
 
 	config["port"], _ = framework.GetUserInput("Server Port", "8078")
+	config["admin_email"], _ = framework.GetUserInput("Admin Email", name + "@" + name + ".com")
+	password := ""
+	for password == "" {
+		password, _ = framework.GetUserInput("Admin Password", password)
+	}
+	
 
 	fmt.Println("****************************\n** DATABASE CONFIGURATION **\n****************************")
 
@@ -161,6 +169,13 @@ func new() {
 
 	config["salt"] = framework.MakeRandomId()
 	config["key"] = framework.MakeRandomId()
+	
+	
+	// TODO passwords should be hashed via bcrypt and a framework function, not md5 (issue #13)
+	h := md5.New()
+	io.WriteString(h, config["salt"])
+	io.WriteString(h, password)
+	config["password_hash"]  = fmt.Sprintf("%x", h.Sum(nil))
 
 	fmt.Printf("Creating new sawsij app %q in location %v\n", name, path)
 
@@ -374,6 +389,8 @@ cd %v
 
 You can then point a browser at http://localhost:%v
 
+The admin panel is at http://localhost:%v/admin
+Your username is "admin" and your password is the one you chose above.
 `
 	if itWorked {
 		fmt.Printf("%v %v %v\n", gobinpath, "install", appserver)
@@ -385,7 +402,7 @@ You can then point a browser at http://localhost:%v
 			itWorked = false
 		} else {
 
-			fmt.Printf(cm, path, path, appserver, config["port"])
+			fmt.Printf(cm, path, path, appserver, config["port"],config["port"])
 		}
 	}
 
