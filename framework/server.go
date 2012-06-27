@@ -366,26 +366,26 @@ func Configure(as *AppSetup, basePath string) (err error) {
 
 					if migrateAndExit {
 						dbs := &DbSetup{Db: db}
-						m := &Model{Db:dbs , Schema: schema.Name}
+						m := &Model{Db: dbs, Schema: schema.Name}
 						log.Printf("Running database migration on %q", schema.Name)
 						for i := dbversion + 1; i <= schema.Version; i++ {
 							scriptfile := fmt.Sprintf("%v/sql/changes/%v_%v_%04d.sql", appScope.BasePath, driver, schema.Name, i)
 							log.Printf("Running script %v", scriptfile)
-							
+
 							err = m.RunScript(scriptfile)
-							if err != nil{
+							if err != nil {
 								log.Fatal(err)
 							}
 							dbv := &SawsijDbVersion{VersionId: i, RanOn: time.Now()}
 							m.Insert(dbv)
-							
+
 						}
 						viewfile := fmt.Sprintf("%v/sql/objects/%v_%v_views.sql", appScope.BasePath, driver, schema.Name)
 						log.Printf("Running script %v", viewfile)
 						err = m.RunScript(viewfile)
-						if err != nil{
+						if err != nil {
 							log.Fatal(err)
-						}						
+						}
 
 					} else {
 						log.Fatal("Schema/App version mismatch. Please run migrate to update the database.")
@@ -400,7 +400,6 @@ func Configure(as *AppSetup, basePath string) (err error) {
 			log.Print("All schemas updated. Exiting.")
 			os.Exit(0)
 		}
-		
 
 	} else {
 		log.Fatal(err)

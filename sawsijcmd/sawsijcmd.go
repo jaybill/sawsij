@@ -4,8 +4,6 @@ import (
 	"bitbucket.org/jaybill/sawsij/framework"
 	"database/sql"
 	"fmt"
-	"io"
-	"crypto/md5"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -169,11 +167,7 @@ func new() {
 	config["salt"] = framework.MakeRandomId()
 	config["key"] = framework.MakeRandomId()
 
-	// TODO passwords should be hashed via bcrypt and a framework function, not md5 (issue #13)
-	h := md5.New()
-	io.WriteString(h, config["salt"])
-	io.WriteString(h, password)
-	config["password_hash"] = fmt.Sprintf("%x", h.Sum(nil))
+	config["password_hash"] = framework.PasswordHash(password, config["salt"])
 
 	fmt.Printf("Creating new sawsij app %q in location %v\n", name, path)
 
@@ -235,6 +229,7 @@ func new() {
 		{"footer.html.tpl", path + "/templates/footer.html"},
 		{"header.html.tpl", path + "/templates/header.html"},
 		{"index.html.tpl", path + "/templates/index.html"},
+		{"login.html.tpl", path + "/templates/login.html"},
 		{"license.tpl", path + "/LICENSE"},
 		{config["driver"] + "_0001.sql.tpl", path + "/sql/changes/" + config["driver"] + "_" + config["schema"] + "_0001.sql"},
 		{config["driver"] + "_views.sql.tpl", path + "/sql/objects/" + config["driver"] + "_" + config["schema"] + "_views.sql"},
@@ -393,7 +388,7 @@ Your username is "admin" and your password is the one you chose above.
 		compileMessage, err := exec.Command(gobinpath, "install", appserver).Output()
 
 		if err != nil {
-			fmt.Println(compileMessage)
+			fmt.Println(string(compileMessage))
 			fmt.Println(err)
 			itWorked = false
 		} else {
