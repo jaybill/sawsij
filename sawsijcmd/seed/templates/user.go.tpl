@@ -5,13 +5,12 @@
 package {{ .name }}
 
 import (
-	"bitbucket.org/jaybill/sawsij/framework"
-	"crypto/md5"
-	"fmt"
-	"io"
+	"bitbucket.org/jaybill/sawsij/framework"		
 	"time"
 )
 
+// User represents an application user in the database. Conforms to the framework.User interface.
+// Roles should be specified with the constants in {{.name}}/constants.go 
 type User struct {
 	Id           int64
 	Username     string
@@ -21,36 +20,30 @@ type User struct {
 	CreatedOn    time.Time
 	Role         int64
 }
-{{/* TODO passwords should be hashed via bcrypt and a framework function, not md5 (issue #13) */}}
-func (u *User) SetPassword(password string, salt string) {
-	h := md5.New()
-	io.WriteString(h, salt)
-	io.WriteString(h, password)
-	u.PasswordHash = fmt.Sprintf("%x", h.Sum(nil))
+
+// SetPassword generates and sets a password hash from a password string and a salt string. 
+// Currently uses the hashing algorithm supplied by the framework. (Required by framework.User)
+func (u *User) SetPassword(password string, salt string) {	
+	u.PasswordHash = framework.PasswordHash(password, salt)
 }
 
+// Tests if the supplied password, when hashed, matches the password hash for the referenced user. (Required by framework.User)
 func (u *User) TestPassword(password string, a *framework.AppScope) (valid bool) {
 	valid = false
 	salt, _ := a.Config.Get("encryption.salt")
 
-	h := md5.New()
-	if salt != "" {
-		io.WriteString(h, salt)
-	}
-
-	io.WriteString(h, password)
-	tHash := fmt.Sprintf("%x", h.Sum(nil))
-
-	if u.PasswordHash == tHash {
+	if u.PasswordHash == framework.PasswordHash(password, salt) {
 		valid = true
 	}
 	return
 }
 
+// Returns the User's role. (Required by framework.User)
 func (u *User) GetRole() int64 {
 	return u.Role
 }
 
+// Sets the password hash on a user struct to empty so it can be super-safely stored in the session. (Required by framework.User)
 func (u *User) ClearPasswordHash() {
 	u.PasswordHash = ""
 }

@@ -13,6 +13,7 @@ import (
 	"time"
 )
 
+// Returns a type that conforms to the framework.User interface.
 func GetUser(username string,a *framework.AppScope)(user framework.User){
     model := &framework.Model{Db: a.Db}
 	dbuser  := &{{ .name }}.User{}
@@ -24,12 +25,14 @@ func GetUser(username string,a *framework.AppScope)(user framework.User){
     return
 }
 
+// Handles the admin landing page.
 func adminHandler(r *http.Request, a *framework.AppScope, rs *framework.RequestScope) (h framework.HandlerResponse, err error) {
 	h.Init()
     h.View["time"] = time.Now()
 	return
 }
 
+// Handles the main application landing page.
 func indexHandler(r *http.Request, a *framework.AppScope, rs *framework.RequestScope) (h framework.HandlerResponse, err error) {
 	h.Init()
 	h.View["appname"] = "{{ .name }}"	
@@ -59,6 +62,9 @@ func main() {
     // Route patterns to handlers
 	framework.Route(framework.RouteConfig{Pattern: "/", Handler: indexHandler, Roles: all})
 	framework.Route(framework.RouteConfig{Pattern: "/admin", Handler: adminHandler, Roles: admin})
+	framework.Route(framework.RouteConfig{Pattern: "/login", Handler: framework.LoginHandler, Roles: all})
+	framework.Route(framework.RouteConfig{Pattern: "/logout", Handler: framework.LogoutHandler, Roles: all})
+	framework.Route(framework.RouteConfig{Pattern: "/denied", Handler: framework.DeniedHandler, Roles: all})
 
     // Start the server
 	framework.Run()

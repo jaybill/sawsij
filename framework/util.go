@@ -121,6 +121,14 @@ func GetReturnType(url string) (rt int, restOfUrl string) {
 	return
 }
 
+func PasswordHash(password string, salt string) (hash string) {
+	h := md5.New()
+	io.WriteString(h, salt)
+	io.WriteString(h, password)
+	hash = fmt.Sprintf("%x", h.Sum(nil))
+	return
+}
+
 // GetTemplateName takes a URL pattern and returns a template Id as a string.
 func GetTemplateName(pattern string) (templateId string) {
 
