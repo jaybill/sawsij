@@ -21,7 +21,7 @@ type User struct {
 	CreatedOn    time.Time
 	Role         int64
 }
-
+{{/* TODO passwords should be hashed via bcrypt and a framework function, not md5 (issue #13) */}}
 func (u *User) SetPassword(password string, salt string) {
 	h := md5.New()
 	io.WriteString(h, salt)
