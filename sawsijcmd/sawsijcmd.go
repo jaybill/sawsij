@@ -78,7 +78,7 @@ func main() {
 
 	switch command {
 	case "new":
-		new()	
+		new()
 	case "crudify":
 		// TODO create DAL and CRUD based on database table (issue #12)
 	default:
@@ -149,12 +149,11 @@ func new() {
 	path, _ = framework.GetUserInput("Application path", path)
 
 	config["port"], _ = framework.GetUserInput("Server Port", "8078")
-	config["admin_email"], _ = framework.GetUserInput("Admin Email", name + "@" + name + ".com")
+	config["admin_email"], _ = framework.GetUserInput("Admin Email", name+"@"+name+".com")
 	password := ""
 	for password == "" {
 		password, _ = framework.GetUserInput("Admin Password", password)
 	}
-	
 
 	fmt.Println("****************************\n** DATABASE CONFIGURATION **\n****************************")
 
@@ -169,13 +168,12 @@ func new() {
 
 	config["salt"] = framework.MakeRandomId()
 	config["key"] = framework.MakeRandomId()
-	
-	
+
 	// TODO passwords should be hashed via bcrypt and a framework function, not md5 (issue #13)
 	h := md5.New()
 	io.WriteString(h, config["salt"])
 	io.WriteString(h, password)
-	config["password_hash"]  = fmt.Sprintf("%x", h.Sum(nil))
+	config["password_hash"] = fmt.Sprintf("%x", h.Sum(nil))
 
 	fmt.Printf("Creating new sawsij app %q in location %v\n", name, path)
 
@@ -195,13 +193,12 @@ func new() {
 		tplDir,
 		srcDir,
 		srcDir + "/" + appserver,
-		srcDir + "/" + name,		
+		srcDir + "/" + name,
 		etcDir,
 		pkgDir,
 		sqlChgDir,
 		sqlObjDir}
 
-	
 	_, err = os.Stat(path)
 
 	if !os.IsNotExist(err) {
@@ -239,7 +236,7 @@ func new() {
 		{"header.html.tpl", path + "/templates/header.html"},
 		{"index.html.tpl", path + "/templates/index.html"},
 		{"license.tpl", path + "/LICENSE"},
-		{config["driver"] + "_0001.sql.tpl", path + "/sql/changes/" + config["driver"] +  "_" + config["schema"] + "_0001.sql"},
+		{config["driver"] + "_0001.sql.tpl", path + "/sql/changes/" + config["driver"] + "_" + config["schema"] + "_0001.sql"},
 		{config["driver"] + "_views.sql.tpl", path + "/sql/objects/" + config["driver"] + "_" + config["schema"] + "_views.sql"},
 		{"user.go.tpl", path + "/src/" + name + "/user.go"},
 	}
@@ -276,14 +273,13 @@ func new() {
 		}
 	}
 
-	
 	if itWorked {
 		db, err := sql.Open(config["driver"], config["connect"])
 		if err != nil {
 			fmt.Println(err)
 			itWorked = false
 		}
-		
+
 		// TODO Remove hardcoded sql string, replace with driver based lookup (issue #11)
 		tcq := "SELECT count(*) as tables FROM information_schema.tables WHERE table_schema = $1;"
 		row := db.QueryRow(tcq, config["schema"])
@@ -301,7 +297,7 @@ func new() {
 		}
 
 		if itWorked {
-			dbscript := path + "/sql/changes/" + config["driver"] +  "_" + config["schema"] + "_0001.sql"
+			dbscript := path + "/sql/changes/" + config["driver"] + "_" + config["schema"] + "_0001.sql"
 			fmt.Printf("Running db script: %v\n", dbscript)
 			bQuery, err := ioutil.ReadFile(dbscript)
 			if err != nil {
@@ -309,10 +305,10 @@ func new() {
 			} else {
 				sQuery := string(bQuery)
 				queries := strings.Split(sQuery, ";")
-				
+
 				for _, query := range queries {
 					query = strings.TrimSpace(query)
-					if query != "" {						
+					if query != "" {
 						_, err = db.Exec(query)
 						if err != nil {
 							fmt.Println(err)
@@ -402,7 +398,7 @@ Your username is "admin" and your password is the one you chose above.
 			itWorked = false
 		} else {
 
-			fmt.Printf(cm, path, path, appserver, config["port"],config["port"])
+			fmt.Printf(cm, path, path, appserver, config["port"], config["port"])
 		}
 	}
 
