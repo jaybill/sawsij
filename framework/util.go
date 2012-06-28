@@ -81,18 +81,24 @@ func MakeFieldName(dbName string) string {
 
 // GetUrlParams removes the string specified in "pattern" and returns key value pairs as a map of strings.
 func GetUrlParams(pattern string, urlPath string) (urlParams map[string]string) {
+
 	rp := strings.NewReplacer(pattern, "")
 	restOfUrl := rp.Replace(urlPath)
+
+	if strings.HasPrefix(restOfUrl, "/") {
+		restOfUrl = restOfUrl[1:len(restOfUrl)]
+	}
 
 	urlParams = make(map[string](string))
 	if len(restOfUrl) > 0 && strings.Contains(restOfUrl, "/") {
 		allUrlParts := strings.Split(restOfUrl, "/")
 
-		if len(allUrlParts)%2 == 0 {
-			for i := 0; i < len(allUrlParts); i += 2 {
+		for i := 0; i < len(allUrlParts); i += 2 {
+			if i+1 < len(allUrlParts) {
 				urlParams[allUrlParts[i]] = allUrlParts[i+1]
 			}
 		}
+
 	}
 	return
 }
