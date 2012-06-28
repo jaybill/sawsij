@@ -16,7 +16,7 @@ import (
 func LoginHandler(r *http.Request, a *AppScope, rs *RequestScope) (h HandlerResponse, err error) {
 	h.Init()
 	var dest string
-
+	log.Printf("URL Params %+v", rs.UrlParams)
 	if rs.UrlParams["dest"] != "" {
 		if err != nil {
 			log.Print(err)

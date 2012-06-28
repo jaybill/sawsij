@@ -11,7 +11,7 @@ import (
 	"reflect"
 	"strings"
 	"time"
-	_"database/sql"
+	_ "database/sql"
 )
 
 // The Model struct is intended to provide something analagous to a lightweight ORM, though not quite. 
@@ -43,8 +43,8 @@ type Model struct {
 // DbVersion is a type representing the db_version table, which must exist in any schema you plan to use with 
 // "[appserver] [directory] migrate"
 type SawsijDbVersion struct {
-	VersionId    int64
-	RanOn time.Time
+	VersionId int64
+	RanOn     time.Time
 }
 
 // Update expects a pointer to a struct that represents a row in your database. The "Id" field of the struct will be used in the where clause.
@@ -57,7 +57,7 @@ func (m *Model) Update(data interface{}) (err error) {
 		holders[i] = fmt.Sprintf("%v=$%v", rowInfo.Keys[i], i+1)
 	}
 
-	query := fmt.Sprintf("UPDATE %q SET %v WHERE id=%d", rowInfo.TableName, strings.Join(holders, ","), rowInfo.Id)
+	query := fmt.Sprintf("UPDATE %v SET %v WHERE id=%d", rowInfo.TableName, strings.Join(holders, ","), rowInfo.Id)
 	log.Printf("Query: %q", query)
 
 	_, err = m.Db.Db.Exec(query, rowInfo.Vals...)
@@ -113,7 +113,7 @@ func (m *Model) Insert(data interface{}) (err error) {
 func (m *Model) Delete(data interface{}) (err error) {
 	rowInfo := m.getRowInfo(data, false)
 	if rowInfo.Id != -1 {
-		query := fmt.Sprintf("DELETE FROM %q WHERE id=%d", rowInfo.TableName, rowInfo.Id)
+		query := fmt.Sprintf("DELETE FROM %v WHERE id=%d", rowInfo.TableName, rowInfo.Id)
 		log.Printf("Query: %q", query)
 
 		_, err = m.Db.Db.Exec(query)
@@ -131,7 +131,7 @@ func (m *Model) Fetch(data interface{}) (err error) {
 	retRow := reflect.ValueOf(data).Elem()
 	dataType := retRow.Type()
 	if rowInfo.Id != -1 {
-		query := fmt.Sprintf("SELECT %v FROM %q WHERE id=%d", strings.Join(rowInfo.Keys, ","), rowInfo.TableName, rowInfo.Id)
+		query := fmt.Sprintf("SELECT %v FROM %v WHERE id=%d", strings.Join(rowInfo.Keys, ","), rowInfo.TableName, rowInfo.Id)
 		log.Printf("Query: %q", query)
 		row := m.Db.Db.QueryRow(query)
 
@@ -172,7 +172,7 @@ func (m *Model) FetchAll(data interface{}, q Query, args ...interface{}) (ents [
 	dataType := retRow.Type()
 	t := reflect.TypeOf(data).Elem()
 
-	query := fmt.Sprintf("SELECT %v FROM %q", strings.Join(rowInfo.Keys, ","), rowInfo.TableName)
+	query := fmt.Sprintf("SELECT %v FROM %v", strings.Join(rowInfo.Keys, ","), rowInfo.TableName)
 	if q.Where != "" {
 		query = fmt.Sprintf("%v WHERE %v", query, q.Where)
 	}
@@ -232,9 +232,9 @@ func (m *Model) getTableName(data interface{}) (tableName string) {
 	}
 	tableName = MakeDbName(tableName)
 	if m.Schema != "" {
-		tableName = m.Schema + "." + tableName
+		tableName = fmt.Sprintf("%q.%q", m.Schema, tableName)
 	} else {
-		tableName = m.Db.DefaultSchema + "." + tableName
+		tableName = fmt.Sprintf("%q.%q", m.Db.DefaultSchema, tableName)
 	}
 	return
 }
@@ -270,6 +270,7 @@ func (m *Model) getRowInfo(data interface{}, includeId bool) (rowInfo forDb) {
 	}
 	return
 }
+
 // RunScript takes a file path to a sql script, reads the file and runs it against the database/schema. 
 // Queries will be run one at a time in a transaction. If there's any kind of error, the whole transaction
 // will be rolled back.
@@ -281,32 +282,32 @@ func (m *Model) RunScript(dbscript string) (err error) {
 	if err != nil {
 		return
 	} else {
-		
-		t,err := m.Db.Db.Begin()
-		
+
+		t, err := m.Db.Db.Begin()
+
 		sQuery := string(bQuery)
-		queries := strings.Split(sQuery, ";")		
+		queries := strings.Split(sQuery, ";")
 		for _, query := range queries {
 			query = strings.TrimSpace(query)
 			var isComment bool = false
-			
-			if strings.HasPrefix(query,"/*") && strings.HasSuffix(query,"*/"){
+
+			if strings.HasPrefix(query, "/*") && strings.HasSuffix(query, "*/") {
 				isComment = true
-			}			
-			
-			if query != "" && !isComment{
-				
+			}
+
+			if query != "" && !isComment {
+
 				log.Printf("Query: %q", query)
 				_, err = t.Exec(query)
 				if err != nil {
 					t.Rollback()
 					return err
 				}
-				
+
 			}
 		}
 		err = t.Commit()
-		if err != nil{
+		if err != nil {
 			return err
 		}
 	}
