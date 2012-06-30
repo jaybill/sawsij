@@ -1,3 +1,7 @@
+    <hr />
+    <div class="footer">
+        <p class="pull-right">&copy; {{.name}}</p>
+    </div>
 </div> <!-- /container -->
 
     <!-- Le javascript

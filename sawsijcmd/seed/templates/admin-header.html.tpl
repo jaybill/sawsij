@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <title>{{ .name }} Admin</title>
+    <title>{{.name}}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="">
     <meta name="author" content="">
@@ -39,14 +39,21 @@
             <span class="icon-bar"></span>
             <span class="icon-bar"></span>
           </a>
-          <a class="brand" href="#">{{ .name}} Admin</a>
-          <div class="nav-collapse">
-            <ul class="nav">
-              <li class="active"><a href="#">Users</a></li>
-              <li><a href="#about">About</a></li>
-              <li><a href="#contact">Contact</a></li>
+          <a class="brand" href="/">{{.name}}</a>
+          
+            <ul class="nav pull-right">
+              <li><a href="/">View Site</a></li>                
+              <li><a href="#">Logged in as <strong><% .global.user.Username %></strong></a></li>
+              <li><a href="/logout">Log Out</a></li> 
+              <% else %>
+              <li><a href="/login">Log In</a></li>
+             
             </ul>
-          </div><!--/.nav-collapse -->
+            <ul class="nav">
+              <li class="active"><a href="/admin">Dashboard</a></li>              
+            </ul>
+            
+         
         </div>
       </div>
     </div>

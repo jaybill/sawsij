@@ -70,8 +70,11 @@ type User interface {
 // functionality. It serves as the basis of the "plugin" system. The only exception is GetUser(), which your app must implement
 // for the framework to function. The GetUser function supplies a type conforming to the User specification. It's used for auth and 
 // session mangement.
+// Roles is a map of ints with string keys that allow you to make role identifiers available by name from within templates. This isn't
+// checked in any way and is solely for ease of use.
 type AppSetup struct {
 	GetUser func(username string, a *AppScope) User
+	Roles   *map[string]int
 }
 
 var store *sessions.CookieStore
@@ -267,7 +270,10 @@ func Route(rcfg RouteConfig) {
 					templateFilename := templateId + ".html"
 					// Add "global" template variables
 					if len(global) > 0 && handlerResults.View != nil {
+
+						global["roles"] = *appScope.Setup.Roles
 						handlerResults.View["global"] = global
+
 					}
 					err = parsedTemplate.ExecuteTemplate(w, templateFilename, handlerResults.View)
 					if err != nil {

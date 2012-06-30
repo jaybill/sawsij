@@ -230,6 +230,7 @@ func new() {
 		{"header.html.tpl", path + "/templates/header.html"},
 		{"index.html.tpl", path + "/templates/index.html"},
 		{"login.html.tpl", path + "/templates/login.html"},
+		{"denied.html.tpl", path + "/templates/denied.html"},
 		{"license.tpl", path + "/LICENSE"},
 		{config["driver"] + "_0001.sql.tpl", path + "/sql/changes/" + config["driver"] + "_" + config["schema"] + "_0001.sql"},
 		{config["driver"] + "_views.sql.tpl", path + "/sql/objects/" + config["driver"] + "_" + config["schema"] + "_views.sql"},
