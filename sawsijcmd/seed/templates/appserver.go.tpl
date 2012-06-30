@@ -35,8 +35,7 @@ func adminHandler(r *http.Request, a *framework.AppScope, rs *framework.RequestS
 // Handles the main application landing page.
 func indexHandler(r *http.Request, a *framework.AppScope, rs *framework.RequestScope) (h framework.HandlerResponse, err error) {
 	h.Init()
-	h.View["appname"] = "{{ .name }}"	
-    h.View["time"] = time.Now()
+	h.View["time"] = time.Now()
 	return
 }
 
@@ -53,8 +52,9 @@ func main() {
     // Create a new AppSetup  
     as := new(framework.AppSetup)
 
-    // Register Callback functions
+// Register Callback functions and roles
 	as.GetUser = GetUser
+	as.Roles = &map[string]int{"admin": {{ .name }}.R_ADMIN, "guest": framework.R_GUEST, "member": {{ .name }}.R_MEMBER}
 
     // Configure the application
 	framework.Configure(as,"")
