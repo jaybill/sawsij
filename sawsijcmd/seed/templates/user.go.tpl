@@ -7,6 +7,7 @@ package {{ .name }}
 import (
 	"bitbucket.org/jaybill/sawsij/framework"		
 	"time"
+	"net/http"
 )
 
 // User represents an application user in the database. Conforms to the framework.User interface.
@@ -48,3 +49,19 @@ func (u *User) ClearPasswordHash() {
 	u.PasswordHash = ""
 }
 
+// Handles the user admin list page.
+func UserAdminListHandler(r *http.Request, a *framework.AppScope, rs *framework.RequestScope) (h framework.HandlerResponse, err error) {
+	h.Init()
+
+	model := &framework.Model{Db: a.Db}
+	user := &User{}
+	q := framework.Query{}
+	users, err := model.FetchAll(user, q)
+	if err == nil {
+		h.View["users"] = users
+	} else {
+		h.Redirect = "/error"
+	}
+
+	return
+}

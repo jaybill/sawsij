@@ -1,3 +1,4 @@
 <% template "header.html" .%>
-<h1>Access Denied</h1>
+<h1>Error</h1>
+<p>An application error has occured.</p>
 <% template "footer.html" .%>

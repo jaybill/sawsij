@@ -44,13 +44,11 @@
             <ul class="nav pull-right">
               <li><a href="/">View Site</a></li>                
               <li><a href="#">Logged in as <strong><% .global.user.Username %></strong></a></li>
-              <li><a href="/logout">Log Out</a></li> 
-              <% else %>
-              <li><a href="/login">Log In</a></li>
-             
+              <li><a href="/logout">Log Out</a></li>                          
             </ul>
             <ul class="nav">
-              <li class="active"><a href="/admin">Dashboard</a></li>              
+              <li <% if eq .global.url "/admin" %>class="active"<% end %>><a href="/admin">Dashboard</a></li>   
+              <li <% if eq .global.url "/admin/users" %>class="active"<% end %>><a href="/admin/users">Users</a></li>
             </ul>
             
          

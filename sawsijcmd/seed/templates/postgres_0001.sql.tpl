@@ -12,7 +12,7 @@ CREATE TABLE "{{ .schema }}"."user"  (
 	"password_hash"	text NOT NULL,
 	"full_name"    	text NOT NULL,
 	"email"        	text NULL,
-	"created_on"   	time NULL,
+	"created_on"   	timestamp NULL,
 	"role"         	int NULL,
 	PRIMARY KEY("id")
 );

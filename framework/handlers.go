@@ -82,6 +82,12 @@ func DeniedHandler(r *http.Request, a *AppScope, rs *RequestScope) (h HandlerRes
 	return
 }
 
+// A handler that you can use for the pattern "/error", which is where requests will be sent when an
+// error occurs.
+func ErrorHandler(r *http.Request, a *AppScope, rs *RequestScope) (h HandlerResponse, err error) {
+	return
+}
+
 // A handler that can be used for clearing the session, logging the user out. No template is required.
 func LogoutHandler(r *http.Request, a *AppScope, rs *RequestScope) (h HandlerResponse, err error) {
 	h.Init()
