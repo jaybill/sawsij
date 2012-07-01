@@ -62,9 +62,13 @@ func main() {
     // Route patterns to handlers
 	framework.Route(framework.RouteConfig{Pattern: "/", Handler: indexHandler, Roles: all})
 	framework.Route(framework.RouteConfig{Pattern: "/admin", Handler: adminHandler, Roles: admin})
+	framework.Route(framework.RouteConfig{Pattern: "/admin/users", Handler: {{ .name }}.UserAdminListHandler, Roles: admin})
 	framework.Route(framework.RouteConfig{Pattern: "/login", Handler: framework.LoginHandler, Roles: all})
 	framework.Route(framework.RouteConfig{Pattern: "/logout", Handler: framework.LogoutHandler, Roles: all})
 	framework.Route(framework.RouteConfig{Pattern: "/denied", Handler: framework.DeniedHandler, Roles: all})
+	framework.Route(framework.RouteConfig{Pattern: "/error", Handler: framework.ErrorHandler, Roles: all})
+
+
 
     // Start the server
 	framework.Run()

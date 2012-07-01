@@ -156,6 +156,7 @@ type RouteConfig struct {
 // You generally call Route() once per pattern after you've called Configure() and before you call Run().
 func Route(rcfg RouteConfig) {
 	templateId := GetTemplateName(rcfg.Pattern)
+
 	var slashRoute string = ""
 	if p := strings.LastIndex(rcfg.Pattern, "/"); p != len(rcfg.Pattern)-1 {
 		slashRoute = rcfg.Pattern + "/"
@@ -268,10 +269,12 @@ func Route(rcfg RouteConfig) {
 					}
 				default:
 					templateFilename := templateId + ".html"
+					log.Printf("Using template file %v", templateFilename)
 					// Add "global" template variables
 					if len(global) > 0 && handlerResults.View != nil {
 
 						global["roles"] = *appScope.Setup.Roles
+						global["url"] = rcfg.Pattern
 						handlerResults.View["global"] = global
 
 					}
