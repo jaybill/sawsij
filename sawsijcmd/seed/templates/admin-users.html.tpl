@@ -14,7 +14,7 @@
   <tbody>
     <%range $index,$user := .users%>
     <tr>
-      <td><a href="/admin/user/edit/id/<% $user.Id %>"><% $user.Username %></a></td>
+      <td><a href="/admin/users/edit/id/<% $user.Id %>"><% $user.Username %></a></td>
       <td><% $user.FullName %></td>
       <td><% $user.Email %></td>
       <td><% dateformat $user.CreatedOn "2 Jan 2006"%></td> 
