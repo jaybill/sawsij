@@ -7,9 +7,6 @@ license that can be found in the LICENSE file.
 
 -->
     <description>build/deploy for sawsijcmd</description>   
-
-	<taskdef resource="net/sourceforge/ant4hg/taskdefs/antlib.xml" />
-    
     <!-- TARGET: message -->
 	<!-- displays a help message with available targets -->
 	<target name="message">
@@ -25,7 +22,7 @@ license that can be found in the LICENSE file.
 	<property name="cmdsrc" value="${sawsijsrc}/src/bitbucket.org/jaybill/sawsij/sawsijcmd"/>
     <!-- TARGET: build -->
 	<!-- Build project and create archive. -->
-	<target name="dobuild">
+	<target name="build">
 	
 	    <echo message="Building sawsij..."/>
     	<exec executable="go" >
@@ -45,24 +42,18 @@ license that can be found in the LICENSE file.
 		<copy file="${sawsijsrc}/bin/sawsijcmd" todir="${build}/sawsij/bin"/>
 		<copy todir="${build}/sawsij/seed"><fileset dir="${cmdsrc}/seed"/></copy>	
 					
-	</target>	
-	<target name="build">
- 		<tstamp/>     
-		<property name="tag" value="${DSTAMP}-${TSTAMP}"/>   
-		<antcall target="dobuild"/>
-	</target>	
-	
-	<target name="dist">	
-	 	<tstamp/>     
-		<property name="tag" value="${DSTAMP}-${TSTAMP}"/>   
-		<antcall target="dobuild"/>
+	</target>		
+	<target name="dist" depends="build">
+		<!-- You will not be able to run this without write access to the sawsij repo. -->	
+		<taskdef resource="net/sourceforge/ant4hg/taskdefs/antlib.xml" />
+	 	<tstamp/>
+		<property name="tag" value="${DSTAMP}-${TSTAMP}"/>   		
         <copy todir="${build}/sawsij">
 		 <fileset dir="${cmdsrc}" includes="VERSION"/>
 		  <filterset>
 		  		<filter token="VERSION" value="${tag}"/>
 		  </filterset>
-		</copy>	
-		
+		</copy>
 		<echo message="Tagging build ${tag}"/>
 		<exec executable="hg" >
 			<arg value="tag"/>	
@@ -70,7 +61,6 @@ license that can be found in the LICENSE file.
 		</exec>	
 		<property name="distfile" value="${ant.project.name}-${tag}.zip"/>		
         <hg cmd="push" dir="${basedir}"/>        
-		<zip destfile="${dist}/${distfile}" basedir="${build}"/>	
-				
+		<zip destfile="${dist}/${distfile}" basedir="${build}"/>					
 	</target>
 </project>

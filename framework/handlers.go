@@ -16,7 +16,7 @@ import (
 func LoginHandler(r *http.Request, a *AppScope, rs *RequestScope) (h HandlerResponse, err error) {
 	h.Init()
 	var dest string
-
+	log.Printf("URL Params %+v", rs.UrlParams)
 	if rs.UrlParams["dest"] != "" {
 		if err != nil {
 			log.Print(err)
@@ -79,6 +79,12 @@ func LoginHandler(r *http.Request, a *AppScope, rs *RequestScope) (h HandlerResp
 // A handler that you can use for the pattern "/denied", which is where requests will be sent when the user 
 // attempts to go to a page they do not have the right role for.
 func DeniedHandler(r *http.Request, a *AppScope, rs *RequestScope) (h HandlerResponse, err error) {
+	return
+}
+
+// A handler that you can use for the pattern "/error", which is where requests will be sent when an
+// error occurs.
+func ErrorHandler(r *http.Request, a *AppScope, rs *RequestScope) (h HandlerResponse, err error) {
 	return
 }
 

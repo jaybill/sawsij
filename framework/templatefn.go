@@ -5,7 +5,9 @@ package framework
 
 import (
 	//"fmt"
+	"fmt"
 	"github.com/russross/blackfriday"
+	"strings"
 	"text/template"
 	"time"
 )
@@ -24,10 +26,21 @@ func DateFormat(t time.Time, layout string) (datestring string) {
 	return
 }
 
+// Compare is a quick and dirty comparison function. It will convert whatever you give it to strings and see if the two values are equal.
+// Whitespace is trimmed. Used by the template parser as "eq"
+func Compare(a, b interface{}) (equal bool) {
+	equal = false
+	if strings.TrimSpace(fmt.Sprintf("%v", a)) == strings.TrimSpace(fmt.Sprintf("%v", b)) {
+		equal = true
+	}
+	return
+}
+
 // GetFuncMap returns a template.FuncMap which will be passed to the template parser. 
 func GetFuncMap() (fnm template.FuncMap) {
 	fnm = make(template.FuncMap)
 	fnm["dateformat"] = DateFormat
 	fnm["markdown"] = MarkDown
+	fnm["eq"] = Compare
 	return
 }

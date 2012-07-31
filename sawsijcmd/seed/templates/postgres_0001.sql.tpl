@@ -12,7 +12,7 @@ CREATE TABLE "{{ .schema }}"."user"  (
 	"password_hash"	text NOT NULL,
 	"full_name"    	text NOT NULL,
 	"email"        	text NULL,
-	"created_on"   	time NULL,
+	"created_on"   	timestamp NULL,
 	"role"         	int NULL,
 	PRIMARY KEY("id")
 );
@@ -20,3 +20,6 @@ CREATE TABLE "{{ .schema }}"."user"  (
 ALTER TABLE "{{ .schema }}"."user"
 	ADD CONSTRAINT "UNIQUE_user_1"
 	UNIQUE ("username");
+
+INSERT INTO  "{{ .schema }}"."user"(username, password_hash, full_name, email, created_on, role) 
+	VALUES ('admin','{{ .password_hash }}', 'Administrator','{{ .admin_email }}' , now(), 3);

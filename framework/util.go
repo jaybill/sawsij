@@ -5,10 +5,11 @@ package framework
 
 import (
 	"archive/zip"
+
 	"bufio"
 	"crypto/md5"
 	"fmt"
-	"github.com/kylelemons/go-gypsy/yaml"
+
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -17,7 +18,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 )
 
 // Return type constants, used in the switch for determining what format the response will be returned in.
@@ -26,25 +26,6 @@ const (
 	RT_XML  = 1 // return XML
 	RT_JSON = 2 // return JSON
 )
-
-// MakeDbName converts a struct field name into a database field name. 
-// The string will be converted to lowercase, and any capital letters after the first one will be prepended with an underscore.
-// "FirstName" will become "first_name" and so on.
-func MakeDbName(fieldName string) string {
-	runes := []rune(fieldName)
-	copy := []rune{}
-	usrunes := []rune("_")
-	us := usrunes[0]
-	for i := 0; i < len(runes); i++ {
-		if i > 0 && unicode.IsUpper(runes[i]) {
-			copy = append(copy, us)
-		}
-		runes[i] = unicode.ToLower(runes[i])
-		copy = append(copy, runes[i])
-
-	}
-	return string(copy)
-}
 
 // GetIntId is a utility function for convertion a string into an int64. Useful for URL params.
 func GetIntId(strId string) (intId int64) {
@@ -57,42 +38,26 @@ func GetIntId(strId string) (intId int64) {
 	return
 }
 
-// MakeDbName converts a database column name into a struct field name. 
-// The first letter will be made capital, and underscores will be removed and the following letter made capital.
-// "first_name" will become "FirstName", etc.
-func MakeFieldName(dbName string) string {
-
-	runes := []rune(dbName)
-	copy := []rune{}
-	usrunes := []rune("_")
-	us := usrunes[0]
-	for i := 0; i < len(runes); i++ {
-		if runes[i] != us {
-			if i == 0 {
-				runes[i] = unicode.ToUpper(runes[i])
-			}
-			copy = append(copy, runes[i])
-		} else {
-			runes[i+1] = unicode.ToUpper(runes[i+1])
-		}
-	}
-	return string(copy)
-}
-
 // GetUrlParams removes the string specified in "pattern" and returns key value pairs as a map of strings.
 func GetUrlParams(pattern string, urlPath string) (urlParams map[string]string) {
+
 	rp := strings.NewReplacer(pattern, "")
 	restOfUrl := rp.Replace(urlPath)
+
+	if strings.HasPrefix(restOfUrl, "/") {
+		restOfUrl = restOfUrl[1:len(restOfUrl)]
+	}
 
 	urlParams = make(map[string](string))
 	if len(restOfUrl) > 0 && strings.Contains(restOfUrl, "/") {
 		allUrlParts := strings.Split(restOfUrl, "/")
 
-		if len(allUrlParts)%2 == 0 {
-			for i := 0; i < len(allUrlParts); i += 2 {
+		for i := 0; i < len(allUrlParts); i += 2 {
+			if i+1 < len(allUrlParts) {
 				urlParams[allUrlParts[i]] = allUrlParts[i+1]
 			}
 		}
+
 	}
 	return
 }
@@ -118,6 +83,14 @@ func GetReturnType(url string) (rt int, restOfUrl string) {
 		rt = RT_HTML
 	}
 
+	return
+}
+
+func PasswordHash(password string, salt string) (hash string) {
+	h := md5.New()
+	io.WriteString(h, salt)
+	io.WriteString(h, password)
+	hash = fmt.Sprintf("%x", h.Sum(nil))
 	return
 }
 
@@ -404,39 +377,4 @@ type SawsijError struct {
 // Returns the error message defined in What as a string
 func (e *SawsijError) Error() string {
 	return e.What
-}
-
-// Reads dbversions file specified by filename and returns schema information
-func ParseDbVersionsFile(dBconfigFilename string) (defaultSchema string, allSchemas []Schema, err error) {
-
-	dbvc, err := yaml.ReadFile(dBconfigFilename)
-	if err != nil {
-		err = &SawsijError{fmt.Sprintf("Can't read %v", dBconfigFilename)}
-		return
-	}
-
-	defaultSchema, err = dbvc.Get("default_schema")
-	if err != nil {
-		err = &SawsijError{fmt.Sprintf("default_schema not defined in %v", dBconfigFilename)}
-		return
-	}
-
-	schemasN, err := yaml.Child(dbvc.Root, ".schema_versions")
-	if err != nil {
-		err = &SawsijError{fmt.Sprintf("Error reading schema_versions in %v", dBconfigFilename)}
-		return
-	}
-
-	if schemasN != nil {
-		schemas := schemasN.(yaml.Map)
-		for schema, version := range schemas {
-			sV, _ := strconv.ParseInt(fmt.Sprintf("%v", version), 0, 0)
-			allSchemas = append(allSchemas, Schema{Name: string(schema), Version: sV})
-		}
-	} else {
-		err = &SawsijError{fmt.Sprintf("No schemas defined in %v", dBconfigFilename)}
-		return
-	}
-
-	return
 }

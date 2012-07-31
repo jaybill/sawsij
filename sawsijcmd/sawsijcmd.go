@@ -2,6 +2,7 @@ package main
 
 import (
 	"bitbucket.org/jaybill/sawsij/framework"
+
 	"database/sql"
 	"fmt"
 	"io/ioutil"
@@ -76,7 +77,7 @@ func main() {
 
 	switch command {
 	case "new":
-		new()	
+		new()
 	case "crudify":
 		// TODO create DAL and CRUD based on database table (issue #12)
 	default:
@@ -147,6 +148,11 @@ func new() {
 	path, _ = framework.GetUserInput("Application path", path)
 
 	config["port"], _ = framework.GetUserInput("Server Port", "8078")
+	config["admin_email"], _ = framework.GetUserInput("Admin Email", name+"@"+name+".com")
+	password := ""
+	for password == "" {
+		password, _ = framework.GetUserInput("Admin Password", password)
+	}
 
 	fmt.Println("****************************\n** DATABASE CONFIGURATION **\n****************************")
 
@@ -161,6 +167,8 @@ func new() {
 
 	config["salt"] = framework.MakeRandomId()
 	config["key"] = framework.MakeRandomId()
+
+	config["password_hash"] = framework.PasswordHash(password, config["salt"])
 
 	fmt.Printf("Creating new sawsij app %q in location %v\n", name, path)
 
@@ -180,13 +188,12 @@ func new() {
 		tplDir,
 		srcDir,
 		srcDir + "/" + appserver,
-		srcDir + "/" + name,		
+		srcDir + "/" + name,
 		etcDir,
 		pkgDir,
 		sqlChgDir,
 		sqlObjDir}
 
-	
 	_, err = os.Stat(path)
 
 	if !os.IsNotExist(err) {
@@ -214,6 +221,9 @@ func new() {
 		Dest string
 	}{
 		{"admin.html.tpl", path + "/templates/admin.html"},
+		{"admin-users.html.tpl", path + "/templates/admin-users.html"},
+		{"admin-users-delete.html.tpl", path + "/templates/admin-users-delete.html"},
+		{"admin-users-edit.html.tpl", path + "/templates/admin-users-edit.html"},
 		{"admin-footer.html.tpl", path + "/templates/admin-footer.html"},
 		{"admin-header.html.tpl", path + "/templates/admin-header.html"},
 		{"appserver.go.tpl", path + "/src/" + appserver + "/" + appserver + ".go"},
@@ -223,8 +233,12 @@ func new() {
 		{"footer.html.tpl", path + "/templates/footer.html"},
 		{"header.html.tpl", path + "/templates/header.html"},
 		{"index.html.tpl", path + "/templates/index.html"},
+		{"login.html.tpl", path + "/templates/login.html"},
+		{"denied.html.tpl", path + "/templates/denied.html"},
+		{"error.html.tpl", path + "/templates/error.html"},
+		{"messages.html.tpl", path + "/templates/messages.html"},
 		{"license.tpl", path + "/LICENSE"},
-		{config["driver"] + "_0001.sql.tpl", path + "/sql/changes/" + config["driver"] +  "_" + config["schema"] + "_0001.sql"},
+		{config["driver"] + "_0001.sql.tpl", path + "/sql/changes/" + config["driver"] + "_" + config["schema"] + "_0001.sql"},
 		{config["driver"] + "_views.sql.tpl", path + "/sql/objects/" + config["driver"] + "_" + config["schema"] + "_views.sql"},
 		{"user.go.tpl", path + "/src/" + name + "/user.go"},
 	}
@@ -261,14 +275,13 @@ func new() {
 		}
 	}
 
-	
 	if itWorked {
 		db, err := sql.Open(config["driver"], config["connect"])
 		if err != nil {
 			fmt.Println(err)
 			itWorked = false
 		}
-		
+
 		// TODO Remove hardcoded sql string, replace with driver based lookup (issue #11)
 		tcq := "SELECT count(*) as tables FROM information_schema.tables WHERE table_schema = $1;"
 		row := db.QueryRow(tcq, config["schema"])
@@ -286,7 +299,7 @@ func new() {
 		}
 
 		if itWorked {
-			dbscript := path + "/sql/changes/" + config["driver"] +  "_" + config["schema"] + "_0001.sql"
+			dbscript := path + "/sql/changes/" + config["driver"] + "_" + config["schema"] + "_0001.sql"
 			fmt.Printf("Running db script: %v\n", dbscript)
 			bQuery, err := ioutil.ReadFile(dbscript)
 			if err != nil {
@@ -294,10 +307,10 @@ func new() {
 			} else {
 				sQuery := string(bQuery)
 				queries := strings.Split(sQuery, ";")
-				
+
 				for _, query := range queries {
 					query = strings.TrimSpace(query)
-					if query != "" {						
+					if query != "" {
 						_, err = db.Exec(query)
 						if err != nil {
 							fmt.Println(err)
@@ -374,18 +387,20 @@ cd %v
 
 You can then point a browser at http://localhost:%v
 
+The admin panel is at http://localhost:%v/admin
+Your username is "admin" and your password is the one you chose above.
 `
 	if itWorked {
 		fmt.Printf("%v %v %v\n", gobinpath, "install", appserver)
 		compileMessage, err := exec.Command(gobinpath, "install", appserver).Output()
 
 		if err != nil {
-			fmt.Println(compileMessage)
+			fmt.Println(string(compileMessage))
 			fmt.Println(err)
 			itWorked = false
 		} else {
 
-			fmt.Printf(cm, path, path, appserver, config["port"])
+			fmt.Printf(cm, path, path, appserver, config["port"], config["port"])
 		}
 	}
 
