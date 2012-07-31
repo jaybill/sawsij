@@ -120,11 +120,14 @@ func (h *HandlerResponse) Init() {
 
 // RouteConfig is what is supplied to the Route() function to set up a route. More about how this is used in the documentation for the Route function.
 type RouteConfig struct {
+	// The URL pattern to be matched for this route, i.e. "/admin/users"
 	Pattern string
+	// A function that will handle this route.
 	Handler func(*http.Request, *AppScope, *RequestScope) (HandlerResponse, error)
-	Roles   []int
-	// TODO Allow explicit configuration of response type (JSON/XML/Etc) (issue #4)
-	// TODO Allow specification of url params /value/value/value or /key/value/key/value/key/value (issue #5)
+	// An array of role (ints) that are allowed to access this route.
+	Roles []int
+	// Setting this to framework.RT_JSON or framework.RT_HTML will force the return type and ignore any URL hints.
+	ReturnType int
 }
 
 // Route takes route config and sets up a handler. This is the primary means by which applications interact with the framework.
@@ -168,7 +171,14 @@ func Route(rcfg RouteConfig) {
 		}
 
 		log.Printf("URL path: %v", r.URL.Path)
-		returnType, restOfUrl := GetReturnType(r.URL.Path)
+		var returnType int
+		var restOfUrl string
+		if rcfg.ReturnType == 0 {
+			returnType, restOfUrl = GetReturnType(r.URL.Path)
+		} else {
+			returnType = rcfg.ReturnType
+			restOfUrl = r.URL.Path
+		}
 
 		urlParams := GetUrlParams(rcfg.Pattern, restOfUrl)
 		log.Printf("URL vars: %v", urlParams)
@@ -333,7 +343,6 @@ func Configure(as *AppSetup, basePath string) (err error) {
 	}
 	appScope.Config = c
 
-	
 	driver, err := c.Get("database.driver")
 	if err != nil {
 		log.Fatal(err)
