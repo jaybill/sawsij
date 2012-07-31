@@ -1,4 +1,4 @@
-<% template "header.html" %>
+<% template "header.html" . %>
 
 <h2>Login</h2>
 
@@ -20,9 +20,9 @@
         <input type="password" class="input-xlarge" name="password" id="password">        
       </div>
     </div>
-	<% if .dest %><input type="hidden" id="dest" name="dest" value="<% .dest %>"/><% end %> 
+  <% if .dest %><input type="hidden" id="dest" name="dest" value="<% .dest %>"/><% end %> 
     <button type="submit" class="btn btn-primary">Log In</button>
   
 </form>
 
-<% template "footer.html" %>
+<% template "footer.html" . %>

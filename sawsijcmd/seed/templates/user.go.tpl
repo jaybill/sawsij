@@ -5,26 +5,33 @@
 package {{ .name }}
 
 import (
-	"bitbucket.org/jaybill/sawsij/framework"		
-	"time"
+	"bitbucket.org/jaybill/sawsij/framework"
+	"bitbucket.org/jaybill/sawsij/framework/model"
+	"code.google.com/p/gorilla/schema"
+	"fmt"
+	"log"
 	"net/http"
+	"strings"
+	"time"
 )
 
 // User represents an application user in the database. Conforms to the framework.User interface.
-// Roles should be specified with the constants in {{.name}}/constants.go 
+// Roles should be specified with the constants in {{ .name }}/constants.go 
 type User struct {
 	Id           int64
 	Username     string
-	PasswordHash string
+	PasswordHash string `schema:"-"`
 	FullName     string
 	Email        string
-	CreatedOn    time.Time
+	CreatedOn    time.Time `schema:"-"`
 	Role         int64
 }
 
+var decoder = schema.NewDecoder()
+
 // SetPassword generates and sets a password hash from a password string and a salt string. 
 // Currently uses the hashing algorithm supplied by the framework. (Required by framework.User)
-func (u *User) SetPassword(password string, salt string) {	
+func (u *User) SetPassword(password string, salt string) {
 	u.PasswordHash = framework.PasswordHash(password, salt)
 }
 
@@ -49,18 +56,202 @@ func (u *User) ClearPasswordHash() {
 	u.PasswordHash = ""
 }
 
+// Looks at the data in the user struct and determines if it's valid. Returns an array of errors if it isn't. 
+func (u *User) GetValidationErrors(a *framework.AppScope) (errors []string) {
+
+	if len(strings.TrimSpace(u.Username)) == 0 {
+		errors = append(errors, "Username cannot be blank.")
+	}
+
+	if len(strings.TrimSpace(u.Email)) == 0 {
+		errors = append(errors, "Email cannot be blank.")
+	}
+
+	t := &model.Table{Db: a.Db}
+	user := &User{}
+	q := model.Query{}
+
+	var users []interface{}
+	var err error
+
+	if u.Id == -1 {
+		q.Where = fmt.Sprintf("%v = $1", model.MakeDbName("Email"))
+		users, err = t.FetchAll(user, q, u.Email)
+	} else {
+		q.Where = fmt.Sprintf("%v = $1 and %v <> $2", model.MakeDbName("Email"), model.MakeDbName("Id"))
+		users, err = t.FetchAll(user, q, u.Email, u.Id)
+	}
+
+	if err != nil {
+		errors = append(errors, "Database error.")
+		return
+	} else {
+		if len(users) > 0 {
+			errors = append(errors, "Email address is already in use.")
+		}
+	}
+
+	if u.Id == -1 {
+		q.Where = fmt.Sprintf("%v = $1", model.MakeDbName("Username"))
+		users, err = t.FetchAll(user, q, u.Username)
+	} else {
+		q.Where = fmt.Sprintf("%v = $1 and %v <> $2", model.MakeDbName("Username"), model.MakeDbName("Id"))
+		users, err = t.FetchAll(user, q, u.Username, u.Id)
+	}
+
+	if err != nil {
+		errors = append(errors, "Database error.")
+		return
+	} else {
+		if len(users) > 0 {
+			errors = append(errors, "Username is already in use.")
+		}
+	}
+
+	return
+}
+
 // Handles the user admin list page.
 func UserAdminListHandler(r *http.Request, a *framework.AppScope, rs *framework.RequestScope) (h framework.HandlerResponse, err error) {
 	h.Init()
 
-	model := &framework.Model{Db: a.Db}
+	t := &model.Table{Db: a.Db}
 	user := &User{}
-	q := framework.Query{}
-	users, err := model.FetchAll(user, q)
+	q := model.Query{}
+	q.Order = model.MakeDbName("Username")
+	users, err := t.FetchAll(user, q)
 	if err == nil {
 		h.View["users"] = users
 	} else {
 		h.Redirect = "/error"
+	}
+
+	return
+}
+
+// Handles the user edit/insert page
+func UserAdminEditHandler(r *http.Request, a *framework.AppScope, rs *framework.RequestScope) (h framework.HandlerResponse, err error) {
+	h.Init()
+	t := &model.Table{Db: a.Db}
+	user := &User{}
+
+	user.Id = framework.GetIntId(rs.UrlParams["id"])
+	if user.Id != -1 {
+		err = t.Fetch(user)
+		if err != nil {
+			log.Print(err)
+			h.Redirect = "/error"
+			return
+		} else {
+			h.View["user"] = user
+		}
+	}
+
+	h.View["roles"] = map[string]int{"member": R_MEMBER, "admin": R_ADMIN}
+
+	if r.Method == "POST" {
+
+		err = r.ParseForm()
+		if err != nil {
+			log.Print(err)
+			h.Redirect = "/error"
+			return
+		}
+
+		err = decoder.Decode(user, r.Form)
+
+		if err != nil {
+			log.Printf("Can't map: %v", err)
+		} else {
+
+			errors := user.GetValidationErrors(a)
+
+			// Password validation has to be done in the handler because the model doesn't know about the confirmation field 
+			// or that the field is optional if you're not changing it.
+			password := strings.TrimSpace(r.FormValue("Password"))
+			passwordAgain := strings.TrimSpace(r.FormValue("PasswordAgain"))
+			if len(password) > 0 {
+				if password != passwordAgain {
+					errors = append(errors, "Passwords do not match.")
+				} else {
+					salt, _ := a.Config.Get("encryption.salt")
+					user.SetPassword(password, salt)
+				}
+			}
+
+			if user.Id == -1 && len(password) < 1 {
+				errors = append(errors, "Password cannot be blank.")
+			}
+
+			if len(errors) == 0 {
+				if user.Id == -1 {
+					// This is an insert
+					user.CreatedOn = time.Now()
+					err = t.Insert(user)
+					if err != nil {
+						log.Print(err)
+						h.Redirect = "/error"
+						return
+					} else {
+						h.View["success"] = "User created."
+					}
+				} else {
+					// This is an update
+					err = t.Update(user)
+					if err != nil {
+						log.Print(err)
+						h.Redirect = "/error"
+						return
+					} else {
+						h.View["success"] = "User updated."
+					}
+
+				}
+
+			} else {
+				h.View["errors"] = errors
+			}
+			// Pass back marshaled struct, even if it isn't valid, to allow correction of mistakes.
+			h.View["user"] = user
+
+		}
+
+	}
+	if user.Id != -1 {
+		h.View["update"] = true
+	}
+
+	return
+}
+
+// Handles the user delete page
+func UserAdminDeleteHandler(r *http.Request, a *framework.AppScope, rs *framework.RequestScope) (h framework.HandlerResponse, err error) {
+	h.Init()
+
+	t := &model.Table{Db: a.Db}
+	user := &User{}
+
+	user.Id = framework.GetIntId(rs.UrlParams["id"])
+	if user.Id != -1 {
+		err = t.Fetch(user)
+		if err != nil {
+			log.Print(err)
+			h.Redirect = "/error"
+			return
+		} else {
+			h.View["user"] = user
+		}
+	} else {
+		log.Print("Delete user called without user id.")
+		h.Redirect = "/error"
+		return
+	}
+
+	h.View["user"] = user
+
+	if r.Method == "POST" {
+		t.Delete(user)
+		h.Redirect = "/admin/users"
 	}
 
 	return

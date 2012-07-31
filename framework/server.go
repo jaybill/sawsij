@@ -6,7 +6,9 @@
 package framework
 
 import (
+	"bitbucket.org/jaybill/sawsij/framework/model"
 	"code.google.com/p/gorilla/sessions"
+
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -29,23 +31,13 @@ const (
 // An AppScope is passed along to a request handler and stores application configuration, the handle to the database and any derived information, 
 // like the base path.
 type AppScope struct {
+	// A reference to the config file
 	Config   *yaml.File
-	Db       *DbSetup
+	Db       *model.DbSetup
 	BasePath string
 	Setup    *AppSetup
-}
-
-// A DbSetup is used to store a reference to the database connection and schema information.
-type DbSetup struct {
-	Db            *sql.DB
-	DefaultSchema string
-	Schemas       []Schema
-}
-
-// A Schema is used to store schema information, like the schema name and what version it is.
-type Schema struct {
-	Name    string
-	Version int64
+	// Can be used to store arbitrary data in the application scope.
+	Custom *map[string]interface{}
 }
 
 // A RequestScope is sent to handler functions and contains session and derived URL information.
@@ -341,6 +333,7 @@ func Configure(as *AppSetup, basePath string) (err error) {
 	}
 	appScope.Config = c
 
+	
 	driver, err := c.Get("database.driver")
 	if err != nil {
 		log.Fatal(err)
@@ -356,7 +349,7 @@ func Configure(as *AppSetup, basePath string) (err error) {
 	}
 
 	dBconfigFilename := appScope.BasePath + "/etc/dbversions.yaml"
-	defaultSchema, allSchemas, err := ParseDbVersionsFile(dBconfigFilename)
+	defaultSchema, allSchemas, err := model.ParseDbVersionsFile(dBconfigFilename)
 
 	if err == nil {
 
@@ -374,24 +367,24 @@ func Configure(as *AppSetup, basePath string) (err error) {
 				if schema.Version != dbversion {
 
 					if migrateAndExit {
-						dbs := &DbSetup{Db: db}
-						m := &Model{Db: dbs, Schema: schema.Name}
+						dbs := &model.DbSetup{Db: db}
+						t := &model.Table{Db: dbs, Schema: schema.Name}
 						log.Printf("Running database migration on %q", schema.Name)
 						for i := dbversion + 1; i <= schema.Version; i++ {
 							scriptfile := fmt.Sprintf("%v/sql/changes/%v_%v_%04d.sql", appScope.BasePath, driver, schema.Name, i)
 							log.Printf("Running script %v", scriptfile)
 
-							err = m.RunScript(scriptfile)
+							err = model.RunScript(db, scriptfile)
 							if err != nil {
 								log.Fatal(err)
 							}
-							dbv := &SawsijDbVersion{VersionId: i, RanOn: time.Now()}
-							m.Insert(dbv)
+							dbv := &model.SawsijDbVersion{VersionId: i, RanOn: time.Now()}
+							t.Insert(dbv)
 
 						}
 						viewfile := fmt.Sprintf("%v/sql/objects/%v_%v_views.sql", appScope.BasePath, driver, schema.Name)
 						log.Printf("Running script %v", viewfile)
-						err = m.RunScript(viewfile)
+						err = model.RunScript(db, viewfile)
 						if err != nil {
 							log.Fatal(err)
 						}
@@ -404,7 +397,7 @@ func Configure(as *AppSetup, basePath string) (err error) {
 			}
 
 		}
-		appScope.Db = &DbSetup{Db: db, DefaultSchema: defaultSchema, Schemas: allSchemas}
+		appScope.Db = &model.DbSetup{Db: db, DefaultSchema: defaultSchema, Schemas: allSchemas}
 		if migrateAndExit {
 			log.Print("All schemas updated. Exiting.")
 			os.Exit(0)
