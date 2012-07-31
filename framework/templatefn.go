@@ -5,11 +5,11 @@ package framework
 
 import (
 	//"fmt"
+	"fmt"
 	"github.com/russross/blackfriday"
+	"strings"
 	"text/template"
 	"time"
-	"fmt"
-	"strings"
 )
 
 // MarkDown parses a string in MarkDown format and returns HTML. Used by the template parser as "markdown"
@@ -27,7 +27,7 @@ func DateFormat(t time.Time, layout string) (datestring string) {
 }
 
 // Compare is a quick and dirty comparison function. It will convert whatever you give it to strings and see if the two values are equal.
-// Whitespace is trimmed.
+// Whitespace is trimmed. Used by the template parser as "eq"
 func Compare(a, b interface{}) (equal bool) {
 	equal = false
 	if strings.TrimSpace(fmt.Sprintf("%v", a)) == strings.TrimSpace(fmt.Sprintf("%v", b)) {

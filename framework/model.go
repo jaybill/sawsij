@@ -5,13 +5,13 @@
 package framework
 
 import (
+	_ "database/sql"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"reflect"
 	"strings"
 	"time"
-	_ "database/sql"
 )
 
 // The Model struct is intended to provide something analagous to a lightweight ORM, though not quite. 
@@ -88,7 +88,9 @@ func (m *Model) Insert(data interface{}) (err error) {
 		log.Print(err)
 	} else {
 		if rowInfo.IdIndex != -1 {
-			idq := fmt.Sprintf("select currval('%v_id_seq')", rowInfo.TableName)
+			log.Printf("Table name is [%v]", rowInfo.TableName)
+			idq := fmt.Sprintf("select currval(%v)", rowInfo.SequenceName)
+			log.Printf("Sequence query: %v", idq)
 			row := m.Db.Db.QueryRow(idq)
 			if err != nil {
 				log.Print(err)
@@ -214,14 +216,15 @@ func (m *Model) FetchAll(data interface{}, q Query, args ...interface{}) (ents [
 }
 
 type forDb struct {
-	Id        interface{}
-	IdIndex   int
-	Keys      []string
-	Vals      []interface{}
-	TableName string
+	Id           interface{}
+	IdIndex      int
+	Keys         []string
+	Vals         []interface{}
+	TableName    string
+	SequenceName string
 }
 
-func (m *Model) getTableName(data interface{}) (tableName string) {
+func (m *Model) getTableNames(data interface{}) (tableName string, sequenceName string) {
 	s := reflect.ValueOf(data).Elem()
 	typeOfT := s.Type()
 
@@ -230,11 +233,13 @@ func (m *Model) getTableName(data interface{}) (tableName string) {
 	if len(parts) > 0 {
 		tableName = parts[len(parts)-1]
 	}
-	tableName = MakeDbName(tableName)
+	dbTableName := MakeDbName(tableName)
 	if m.Schema != "" {
-		tableName = fmt.Sprintf("%q.%q", m.Schema, tableName)
+		tableName = fmt.Sprintf("%q.%q", m.Schema, dbTableName)
+		sequenceName = fmt.Sprintf("'%v.%v'", m.Schema, dbTableName+"_id_seq")
 	} else {
-		tableName = fmt.Sprintf("%q.%q", m.Db.DefaultSchema, tableName)
+		tableName = fmt.Sprintf("%q.%q", m.Db.DefaultSchema, dbTableName)
+		sequenceName = fmt.Sprintf("'%v.%v'", m.Db.DefaultSchema, dbTableName+"_id_seq")
 	}
 	return
 }
@@ -251,7 +256,7 @@ func (m *Model) getRowInfo(data interface{}, includeId bool) (rowInfo forDb) {
 	if len(parts) > 0 {
 		rowInfo.TableName = parts[len(parts)-1]
 	}
-	rowInfo.TableName = m.getTableName(data)
+	rowInfo.TableName, rowInfo.SequenceName = m.getTableNames(data)
 
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
