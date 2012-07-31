@@ -47,8 +47,8 @@ func main() {
 	gob.Register(&{{ .name }}.User{})
 
 	// define some role arrays
-	admin := []int{{{ .name }}.R_ADMIN}
-	all := []int{{{ .name }}.R_ADMIN, framework.R_GUEST, {{ .name }}.R_MEMBER}
+	admin := []int{ {{ .name }}.R_ADMIN}
+	all := []int{ {{ .name }}.R_ADMIN, framework.R_GUEST, {{ .name }}.R_MEMBER}
 
 	// Create a new AppSetup  
 	as := new(framework.AppSetup)
