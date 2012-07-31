@@ -2,6 +2,7 @@ package main
 
 import (
 	"bitbucket.org/jaybill/sawsij/framework"
+
 	"database/sql"
 	"fmt"
 	"io/ioutil"
@@ -221,6 +222,8 @@ func new() {
 	}{
 		{"admin.html.tpl", path + "/templates/admin.html"},
 		{"admin-users.html.tpl", path + "/templates/admin-users.html"},
+		{"admin-users-delete.html.tpl", path + "/templates/admin-users-delete.html"},
+		{"admin-users-edit.html.tpl", path + "/templates/admin-users-edit.html"},
 		{"admin-footer.html.tpl", path + "/templates/admin-footer.html"},
 		{"admin-header.html.tpl", path + "/templates/admin-header.html"},
 		{"appserver.go.tpl", path + "/src/" + appserver + "/" + appserver + ".go"},
@@ -233,6 +236,7 @@ func new() {
 		{"login.html.tpl", path + "/templates/login.html"},
 		{"denied.html.tpl", path + "/templates/denied.html"},
 		{"error.html.tpl", path + "/templates/error.html"},
+		{"messages.html.tpl", path + "/templates/messages.html"},
 		{"license.tpl", path + "/LICENSE"},
 		{config["driver"] + "_0001.sql.tpl", path + "/sql/changes/" + config["driver"] + "_" + config["schema"] + "_0001.sql"},
 		{config["driver"] + "_views.sql.tpl", path + "/sql/objects/" + config["driver"] + "_" + config["schema"] + "_views.sql"},

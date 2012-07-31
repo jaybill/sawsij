@@ -2,16 +2,20 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package framework
+package model
 
 import (
 	_ "database/sql"
+	"database/sql"
 	"fmt"
+	"github.com/kylelemons/go-gypsy/yaml"
 	"io/ioutil"
 	"log"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
 // The Model struct is intended to provide something analagous to a lightweight ORM, though not quite. 
@@ -35,9 +39,23 @@ import (
 // 
 // As currently implemented, both your table and your struct must have an identity to do anything useful. 
 // ("join" tables being the exception)
-type Model struct {
+
+type Table struct {
 	Db     *DbSetup
 	Schema string
+}
+
+// A DbSetup is used to store a reference to the database connection and schema information.
+type DbSetup struct {
+	Db            *sql.DB
+	DefaultSchema string
+	Schemas       []Schema
+}
+
+// A Schema is used to store schema information, like the schema name and what version it is.
+type Schema struct {
+	Name    string
+	Version int64
 }
 
 // DbVersion is a type representing the db_version table, which must exist in any schema you plan to use with 
@@ -48,7 +66,7 @@ type SawsijDbVersion struct {
 }
 
 // Update expects a pointer to a struct that represents a row in your database. The "Id" field of the struct will be used in the where clause.
-func (m *Model) Update(data interface{}) (err error) {
+func (m *Table) Update(data interface{}) (err error) {
 
 	rowInfo := m.getRowInfo(data, false)
 	holders := make([]string, len(rowInfo.Keys))
@@ -70,7 +88,7 @@ func (m *Model) Update(data interface{}) (err error) {
 
 // Insert expects a pointer to a struct that represents a row in your database. The "Id" field of the referenced struct will be populated with the 
 // identity value if the row is successfully inserted.
-func (m *Model) Insert(data interface{}) (err error) {
+func (m *Table) Insert(data interface{}) (err error) {
 
 	rowInfo := m.getRowInfo(data, false)
 	holders := make([]string, len(rowInfo.Keys))
@@ -112,7 +130,7 @@ func (m *Model) Insert(data interface{}) (err error) {
 
 // Delete takes a pointer to a struct and deletes the row where the id in the table is the Id of the struct.
 // Note that you don't need to have acquired this struct from a row, passing in a pointer to something like {Id: 4} will totally work.
-func (m *Model) Delete(data interface{}) (err error) {
+func (m *Table) Delete(data interface{}) (err error) {
 	rowInfo := m.getRowInfo(data, false)
 	if rowInfo.Id != -1 {
 		query := fmt.Sprintf("DELETE FROM %v WHERE id=%d", rowInfo.TableName, rowInfo.Id)
@@ -127,7 +145,7 @@ func (m *Model) Delete(data interface{}) (err error) {
 }
 
 // Fetch returns a single row where the id in the table is the Id of the struct.
-func (m *Model) Fetch(data interface{}) (err error) {
+func (m *Table) Fetch(data interface{}) (err error) {
 	rowInfo := m.getRowInfo(data, false)
 	cols := make([]interface{}, 0)
 	retRow := reflect.ValueOf(data).Elem()
@@ -166,7 +184,7 @@ type Query struct {
 
 // FetchAll accepts a reference to a struct (generally "blank", though it doesn't matter), a Query and a set of query arguments and returns a set of rows that match
 // the query.
-func (m *Model) FetchAll(data interface{}, q Query, args ...interface{}) (ents []interface{}, err error) {
+func (m *Table) FetchAll(data interface{}, q Query, args ...interface{}) (ents []interface{}, err error) {
 	ents = make([]interface{}, 0)
 	rowInfo := m.getRowInfo(data, true)
 
@@ -224,7 +242,7 @@ type forDb struct {
 	SequenceName string
 }
 
-func (m *Model) getTableNames(data interface{}) (tableName string, sequenceName string) {
+func (m *Table) getTableNames(data interface{}) (tableName string, sequenceName string) {
 	s := reflect.ValueOf(data).Elem()
 	typeOfT := s.Type()
 
@@ -244,7 +262,7 @@ func (m *Model) getTableNames(data interface{}) (tableName string, sequenceName 
 	return
 }
 
-func (m *Model) getRowInfo(data interface{}, includeId bool) (rowInfo forDb) {
+func (m *Table) getRowInfo(data interface{}, includeId bool) (rowInfo forDb) {
 	s := reflect.ValueOf(data).Elem()
 	typeOfT := s.Type()
 	rowInfo.Vals = make([]interface{}, 0)
@@ -281,14 +299,14 @@ func (m *Model) getRowInfo(data interface{}, includeId bool) (rowInfo forDb) {
 // will be rolled back.
 // Queries must be terminated by ";" and you must use C style comments, not --. (This limitation will 
 // probably be removed at some point.)
-func (m *Model) RunScript(dbscript string) (err error) {
+func RunScript(db *sql.DB, dbscript string) (err error) {
 
 	bQuery, err := ioutil.ReadFile(dbscript)
 	if err != nil {
 		return
 	} else {
 
-		t, err := m.Db.Db.Begin()
+		t, err := db.Begin()
 
 		sQuery := string(bQuery)
 		queries := strings.Split(sQuery, ";")
@@ -318,4 +336,90 @@ func (m *Model) RunScript(dbscript string) (err error) {
 	}
 	return
 
+}
+
+// MakeDbName converts a struct field name into a database field name. 
+// The string will be converted to lowercase, and any capital letters after the first one will be prepended with an underscore.
+// "FirstName" will become "first_name" and so on.
+func MakeDbName(fieldName string) string {
+	runes := []rune(fieldName)
+	copy := []rune{}
+	usrunes := []rune("_")
+	us := usrunes[0]
+	for i := 0; i < len(runes); i++ {
+		if i > 0 && unicode.IsUpper(runes[i]) {
+			copy = append(copy, us)
+		}
+		runes[i] = unicode.ToLower(runes[i])
+		copy = append(copy, runes[i])
+
+	}
+	return string(copy)
+}
+
+// MakeDbName converts a database column name into a struct field name. 
+// The first letter will be made capital, and underscores will be removed and the following letter made capital.
+// "first_name" will become "FirstName", etc.
+func MakeFieldName(dbName string) string {
+
+	runes := []rune(dbName)
+	copy := []rune{}
+	usrunes := []rune("_")
+	us := usrunes[0]
+	for i := 0; i < len(runes); i++ {
+		if runes[i] != us {
+			if i == 0 {
+				runes[i] = unicode.ToUpper(runes[i])
+			}
+			copy = append(copy, runes[i])
+		} else {
+			runes[i+1] = unicode.ToUpper(runes[i+1])
+		}
+	}
+	return string(copy)
+}
+
+// Reads dbversions file specified by filename and returns schema information
+func ParseDbVersionsFile(dBconfigFilename string) (defaultSchema string, allSchemas []Schema, err error) {
+
+	dbvc, err := yaml.ReadFile(dBconfigFilename)
+	if err != nil {
+		err = &SawsijDbError{fmt.Sprintf("Can't read %v", dBconfigFilename)}
+		return
+	}
+
+	defaultSchema, err = dbvc.Get("default_schema")
+	if err != nil {
+		err = &SawsijDbError{fmt.Sprintf("default_schema not defined in %v", dBconfigFilename)}
+		return
+	}
+
+	schemasN, err := yaml.Child(dbvc.Root, ".schema_versions")
+	if err != nil {
+		err = &SawsijDbError{fmt.Sprintf("Error reading schema_versions in %v", dBconfigFilename)}
+		return
+	}
+
+	if schemasN != nil {
+		schemas := schemasN.(yaml.Map)
+		for schema, version := range schemas {
+			sV, _ := strconv.ParseInt(fmt.Sprintf("%v", version), 0, 0)
+			allSchemas = append(allSchemas, Schema{Name: string(schema), Version: sV})
+		}
+	} else {
+		err = &SawsijDbError{fmt.Sprintf("No schemas defined in %v", dBconfigFilename)}
+		return
+	}
+
+	return
+}
+
+// A struct for returning model error messages
+type SawsijDbError struct {
+	What string
+}
+
+// Returns the error message defined in What as a string
+func (e *SawsijDbError) Error() string {
+	return e.What
 }

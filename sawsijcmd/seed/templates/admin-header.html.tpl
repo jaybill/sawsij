@@ -57,3 +57,4 @@
     </div>
 
     <div class="container">
+    <% template "messages.html" .%>

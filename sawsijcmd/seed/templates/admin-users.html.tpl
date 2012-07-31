@@ -1,5 +1,6 @@
 <% template "admin-header.html" .%>
 
+<span class="pull-right"><a class="btn btn-primary" href="/admin/users/edit" title="Add new user"><i class="icon-plus-sign icon-white"></i> Add New</a></span>
 <h1>Manage Users</h1>
 
 <table class="table table-striped table-bordered table-condensed">
