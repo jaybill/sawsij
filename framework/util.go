@@ -9,9 +9,9 @@ import (
 	"bufio"
 	"crypto/md5"
 	"fmt"
-
 	"io"
 	"io/ioutil"
+	"log"
 	"math/rand"
 	"net/http"
 	"os"
@@ -51,11 +51,15 @@ func GetUrlParams(pattern string, urlPath string) (urlParams map[string]string) 
 	urlParams = make(map[string](string))
 	if len(restOfUrl) > 0 && strings.Contains(restOfUrl, "/") {
 		allUrlParts := strings.Split(restOfUrl, "/")
-
-		for i := 0; i < len(allUrlParts); i += 2 {
-			if i+1 < len(allUrlParts) {
-				urlParams[allUrlParts[i]] = allUrlParts[i+1]
+		log.Printf("Url part count: %v", len(allUrlParts))
+		if len(allUrlParts)%2 == 0 {
+			for i := 0; i < len(allUrlParts); i += 2 {
+				if i+1 < len(allUrlParts) {
+					urlParams[allUrlParts[i]] = allUrlParts[i+1]
+				}
 			}
+		} else {
+			log.Printf("Uneven number of params: %+v", allUrlParts)
 		}
 
 	}
