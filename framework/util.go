@@ -22,9 +22,9 @@ import (
 
 // Return type constants, used in the switch for determining what format the response will be returned in.
 const (
-	RT_HTML = 0 // return HTML
-	RT_XML  = 1 // return XML
-	RT_JSON = 2 // return JSON
+	RT_HTML = 5 // return HTML
+	RT_XML  = 7 // return XML
+	RT_JSON = 9 // return JSON
 )
 
 // GetIntId is a utility function for convertion a string into an int64. Useful for URL params.
