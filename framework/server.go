@@ -173,11 +173,13 @@ func Route(rcfg RouteConfig) {
 		log.Printf("URL path: %v", r.URL.Path)
 		var returnType int
 		var restOfUrl string
+
 		if rcfg.ReturnType == 0 {
 			returnType, restOfUrl = GetReturnType(r.URL.Path)
 		} else {
 			returnType = rcfg.ReturnType
 			restOfUrl = r.URL.Path
+
 		}
 
 		urlParams := GetUrlParams(rcfg.Pattern, restOfUrl)
