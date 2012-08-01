@@ -42,9 +42,9 @@ import (
 	"unicode"
 )
 
-// Table is the primary means of interaction with the database. It represents the access to a table, not the table itself. The package 
-// figures out what table to use based on the type being passed to the various methods of Table. Using anything but a 'flat' struct as a type
-// will have unpredictable results.
+// Table is the primary means of interaction with the database. It represents the access to a table, not the table itself. 
+// The package figures out what table to use based on the type being passed to the various methods of Table. 
+// Using anything but a 'flat' struct as a type will have unpredictable results.
 type Table struct {
 	// A handle to DbSetup type, which holds 
 	Db     *DbSetup
