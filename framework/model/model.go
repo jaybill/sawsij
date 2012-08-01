@@ -2,6 +2,30 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+/* Provides a simple database access layer and table/field mapping. 
+
+The Model package is intended to provide something analagous to a lightweight ORM, though not quite. 
+The general pattern of usage is that you create a struct that represents a row in your table, with the 
+fields mapping to column names. You then pass a pointer to that struct into Model's various methods 
+to perform database operations. At the moment, only postgres is supported.
+
+Struct field names are converted to database column names using sawsij.MakeDbName() and database column
+names are converted to struct field names using sawsij.MakeFieldName(). Generally, it works as follows:
+
+A struct field called "FirstName" will be mapped to a database column named "first_name".
+A struct field called "Type" will be mapped to a database column named "type".
+
+Table names are mapped the same way, wherin a struct of type "PersonAddress" would look for a table called "person_address".
+
+If you set the Schema property to a valid schema name, it will be used. If generally only use one schema in your app, you can just
+set the search path for the database user in postgres and omit the Schema property. (You can specifiy it if you want to use some other
+schema.) You can generally do this in postgres with the following query:
+
+ALTER USER [db_username] SET search_path to '[app_schema_name]'
+
+As currently implemented, both your table and your struct must have an identity to do anything useful. 
+("join" tables being the exception)
+*/
 package model
 
 import (
@@ -18,29 +42,10 @@ import (
 	"unicode"
 )
 
-// The Model struct is intended to provide something analagous to a lightweight ORM, though not quite. 
-// The general pattern of usage is that you create a struct that represents a row in your table, with the 
-// fields mapping to column names. You then pass a pointer to that struct into Model's various methods 
-// to perform database operations. At the moment, only postgres is supported.
-//
-// Struct field names are converted to database column names using sawsij.MakeDbName() and database column
-// names are converted to struct field names using sawsij.MakeFieldName(). Generally, it works as follows:
-//
-// A struct field called "FirstName" will be mapped to a database column named "first_name".
-// A struct field called "Type" will be mapped to a database column named "type".
-//
-// Table names are mapped the same way, wherin a struct of type "PersonAddress" would look for a table called "person_address".
-//
-// If you set the Schema property to a valid schema name, it will be used. If generally only use one schema in your app, you can just
-// set the search path for the database user in postgres and omit the Schema property. (You can specifiy it if you want to use some other
-// schema.) You can generally do this in postgres with the following query:
-//
-// ALTER USER [db_username] SET search_path to '[app_schema_name]'
-// 
-// As currently implemented, both your table and your struct must have an identity to do anything useful. 
-// ("join" tables being the exception)
-
+// Table is the primary means of interaction with the database. It represents the access to a table, not the table itself. The package 
+// figures out what table to use based on the type being passed to the various methods of Table.
 type Table struct {
+	// A handle to DbSetup type, which holds 
 	Db     *DbSetup
 	Schema string
 }
