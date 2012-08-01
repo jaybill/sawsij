@@ -135,7 +135,7 @@ func UserAdminEditHandler(r *http.Request, a *framework.AppScope, rs *framework.
 	t := &model.Table{Db: a.Db}
 	user := &User{}
 
-	user.Id = framework.GetIntId(rs.UrlParams["id"])
+	user.Id = framework.GetIntId(rs.UrlParamMap["id"])
 	if user.Id != -1 {
 		err = t.Fetch(user)
 		if err != nil {
@@ -231,7 +231,7 @@ func UserAdminDeleteHandler(r *http.Request, a *framework.AppScope, rs *framewor
 	t := &model.Table{Db: a.Db}
 	user := &User{}
 
-	user.Id = framework.GetIntId(rs.UrlParams["id"])
+	user.Id = framework.GetIntId(rs.UrlParamMap["id"])
 	if user.Id != -1 {
 		err = t.Fetch(user)
 		if err != nil {

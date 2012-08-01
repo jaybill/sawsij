@@ -42,8 +42,12 @@ type AppScope struct {
 
 // A RequestScope is sent to handler functions and contains session and derived URL information.
 type RequestScope struct {
-	Session   *sessions.Session
-	UrlParams map[string]string
+	// The user session handle
+	Session *sessions.Session
+	// An array of URL parameters, in the order they came through. Will be populated if ParamAs field of the RouteConfig is set to PARAMS_ARRAY
+	UrlParamArray []string
+	// A map of URL parameters as a key value map. Will be populated if ParamAs field of the RouteConfig is set to PARAMS_MAP
+	UrlParamMap map[string]string
 }
 
 // The User interface describes the methods that the framework needs to interact with a user for the purposes of auth and session management. 
@@ -128,6 +132,9 @@ type RouteConfig struct {
 	Roles []int
 	// Setting this to framework.RT_JSON or framework.RT_HTML will force the return type and ignore any URL hints.
 	ReturnType int
+	// How parameters will be specified on the URL. Will default to PARAMS_MAP, a key value map. Can be set to PARAMS_ARRAY to return
+	// an ordered array of values
+	ParamsAs int
 }
 
 // Route takes route config and sets up a handler. This is the primary means by which applications interact with the framework.
@@ -141,9 +148,6 @@ type RouteConfig struct {
 //
 // Note that these are strings, so you'll need to convert them to whatever types you need. If you just need an Int id, there's a useful utility function,
 // sawsij.GetIntId()
-//
-// If you start a pattern with "/json", whatever you return will be marshalled into JSON instead of being passed through to a template. Same goes for "/xml" though
-// this isn't implemented yet.
 //
 // The template filename to be used is based on the pattern, with slashes being converted to dashes. So "/admin" looks for "[app_root_dir]/templates/admin.html"
 // and "/posts/list" will look for "[app_root_dir]/templates/posts-list.html". The pattern "/" will look for "[app_root_dir]/index.html".
@@ -172,18 +176,13 @@ func Route(rcfg RouteConfig) {
 
 		log.Printf("URL path: %v", r.URL.Path)
 		var returnType int
-		var restOfUrl string
 
 		if rcfg.ReturnType == 0 {
-			returnType, restOfUrl = GetReturnType(r.URL.Path)
+			returnType = RT_HTML
 		} else {
 			returnType = rcfg.ReturnType
-			restOfUrl = r.URL.Path
-
 		}
 
-		urlParams := GetUrlParams(rcfg.Pattern, restOfUrl)
-		log.Printf("URL vars: %v", urlParams)
 		global := make(map[string]interface{})
 		session, _ := store.Get(r, "session")
 		role := R_GUEST // Set to guest by default
@@ -213,7 +212,16 @@ func Route(rcfg RouteConfig) {
 			}
 		} else {
 			// Everything is ok. Proceed normally.
-			reqScope := RequestScope{UrlParams: urlParams, Session: session}
+			reqScope := RequestScope{Session: session}
+
+			switch rcfg.ParamsAs {
+			case PARAMS_ARRAY:
+				reqScope.UrlParamArray = GetUrlParamsArray(rcfg.Pattern, r.URL.Path)
+			default:
+				reqScope.UrlParamMap = GetUrlParamsMap(rcfg.Pattern, r.URL.Path)
+
+			}
+
 			global["user"] = session.Values["user"]
 			// Call the supplied handler function and get the results back.
 			handlerResults, err = rcfg.Handler(r, appScope, &reqScope)
