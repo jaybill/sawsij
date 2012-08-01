@@ -46,6 +46,7 @@ import (
 // figures out what table to use based on the type being passed to the various methods of Table. Using anything but a 'flat' struct as a type
 // will have unpredictable results.
 type Table struct {
+	// A handle to DbSetup type, which holds 
 	Db     *DbSetup
 	Schema string
 }
