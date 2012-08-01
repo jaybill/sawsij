@@ -16,12 +16,12 @@ import (
 func LoginHandler(r *http.Request, a *AppScope, rs *RequestScope) (h HandlerResponse, err error) {
 	h.Init()
 	var dest string
-	log.Printf("URL Params %+v", rs.UrlParams)
-	if rs.UrlParams["dest"] != "" {
+
+	if rs.UrlParamMap["dest"] != "" {
 		if err != nil {
 			log.Print(err)
 		} else {
-			h.View["dest"] = rs.UrlParams["dest"]
+			h.View["dest"] = rs.UrlParamMap["dest"]
 		}
 	} else {
 		log.Println("No destination specified, will redirect to /")

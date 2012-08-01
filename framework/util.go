@@ -27,6 +27,12 @@ const (
 	RT_JSON = 9 // return JSON
 )
 
+// Constants for how to return URL parameters
+const (
+	PARAMS_MAP   = 13
+	PARAMS_ARRAY = 15
+)
+
 // GetIntId is a utility function for convertion a string into an int64. Useful for URL params.
 func GetIntId(strId string) (intId int64) {
 	intId, err := strconv.ParseInt(strId, 0, 0)
@@ -39,7 +45,7 @@ func GetIntId(strId string) (intId int64) {
 }
 
 // GetUrlParams removes the string specified in "pattern" and returns key value pairs as a map of strings.
-func GetUrlParams(pattern string, urlPath string) (urlParams map[string]string) {
+func GetUrlParamsMap(pattern string, urlPath string) (urlParams map[string]string) {
 
 	rp := strings.NewReplacer(pattern, "")
 	restOfUrl := rp.Replace(urlPath)
@@ -63,30 +69,19 @@ func GetUrlParams(pattern string, urlPath string) (urlParams map[string]string) 
 		}
 
 	}
+
 	return
 }
 
-// GetReturnType takes a pattern and determines the type of response being requested. Currently, "/json" is the only one implemented.
-func GetReturnType(url string) (rt int, restOfUrl string) {
-	jp := "/json"
-	if strings.Index(url, jp) == 0 {
-		jrp := strings.NewReplacer(jp, "")
-		restOfUrl = jrp.Replace(url)
-		rt = RT_JSON
-	}
+// GetUrlParams removes the string specified in "pattern" and returns key value pairs as a map of strings.
+func GetUrlParamsArray(pattern string, urlPath string) (urlParams []string) {
+	rp := strings.NewReplacer(pattern, "")
+	restOfUrl := rp.Replace(urlPath)
 
-	xp := "/xml"
-	if strings.Index(url, xp) == 0 {
-		xrp := strings.NewReplacer(xp, "")
-		restOfUrl = xrp.Replace(url)
-		rt = RT_XML
+	if strings.HasPrefix(restOfUrl, "/") {
+		restOfUrl = restOfUrl[1:len(restOfUrl)]
 	}
-
-	if len(restOfUrl) == 0 {
-		restOfUrl = url
-		rt = RT_HTML
-	}
-
+	urlParams = strings.Split(restOfUrl, "/")
 	return
 }
 
