@@ -39,8 +39,7 @@ func (u *User) SetPassword(password string, salt string) {
 func (u *User) TestPassword(password string, a *framework.AppScope) (valid bool) {
 	valid = false
 	salt, _ := a.Config.Get("encryption.salt")
-
-	if u.PasswordHash == framework.PasswordHash(password, salt) {
+	if framework.CompareHashAndPassword(u.PasswordHash, password, salt) {
 		valid = true
 	}
 	return

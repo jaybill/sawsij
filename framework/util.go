@@ -7,6 +7,7 @@ import (
 	"archive/zip"
 
 	"bufio"
+	"code.google.com/p/go.crypto/bcrypt"
 	"crypto/md5"
 	"fmt"
 	"io"
@@ -86,10 +87,20 @@ func GetUrlParamsArray(pattern string, urlPath string) (urlParams []string) {
 }
 
 func PasswordHash(password string, salt string) (hash string) {
-	h := md5.New()
-	io.WriteString(h, salt)
-	io.WriteString(h, password)
-	hash = fmt.Sprintf("%x", h.Sum(nil))
+	bHash, _ := bcrypt.GenerateFromPassword([]byte(salt+password), bcrypt.DefaultCost)
+	hash = string(bHash)
+	return
+}
+
+func CompareHashAndPassword(hash string, testPassword string, salt string) (valid bool) {
+
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(salt+testPassword))
+	if err == nil {
+		valid = true
+	} else {
+		valid = false
+	}
+
 	return
 }
 

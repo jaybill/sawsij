@@ -135,6 +135,9 @@ type RouteConfig struct {
 	// How parameters will be specified on the URL. Will default to PARAMS_MAP, a key value map. Can be set to PARAMS_ARRAY to return
 	// an ordered array of values
 	ParamsAs int
+	// If TemplateFilename is set, it will be used instead of template name derived from then pattern-based naming convention.
+	// The specified template must exist in the [app_root]/templates folder.
+	TemplateFilename string
 }
 
 // Route takes route config and sets up a handler. This is the primary means by which applications interact with the framework.
@@ -154,7 +157,6 @@ type RouteConfig struct {
 //
 // You generally call Route() once per pattern after you've called Configure() and before you call Run().
 func Route(rcfg RouteConfig) {
-	templateId := GetTemplateName(rcfg.Pattern)
 
 	var slashRoute string = ""
 	if p := strings.LastIndex(rcfg.Pattern, "/"); p != len(rcfg.Pattern)-1 {
@@ -280,7 +282,12 @@ func Route(rcfg RouteConfig) {
 						fmt.Fprintf(w, "%s", b)
 					}
 				default:
-					templateFilename := templateId + ".html"
+					var templateFilename string
+					if rcfg.TemplateFilename == "" {
+						templateFilename = GetTemplateName(rcfg.Pattern) + ".html"
+					} else {
+						templateFilename = rcfg.TemplateFilename
+					}
 					log.Printf("Using template file %v", templateFilename)
 					// Add "global" template variables
 					if len(global) > 0 && handlerResults.View != nil {
