@@ -39,8 +39,7 @@ func (u *User) SetPassword(password string, salt string) {
 func (u *User) TestPassword(password string, a *framework.AppScope) (valid bool) {
 	valid = false
 	salt, _ := a.Config.Get("encryption.salt")
-
-	if u.PasswordHash == framework.PasswordHash(password, salt) {
+	if framework.CompareHashAndPassword(u.PasswordHash, password, salt) {
 		valid = true
 	}
 	return
@@ -135,7 +134,7 @@ func UserAdminEditHandler(r *http.Request, a *framework.AppScope, rs *framework.
 	t := &model.Table{Db: a.Db}
 	user := &User{}
 
-	user.Id = framework.GetIntId(rs.UrlParams["id"])
+	user.Id = framework.GetIntId(rs.UrlParamMap["id"])
 	if user.Id != -1 {
 		err = t.Fetch(user)
 		if err != nil {
@@ -231,7 +230,7 @@ func UserAdminDeleteHandler(r *http.Request, a *framework.AppScope, rs *framewor
 	t := &model.Table{Db: a.Db}
 	user := &User{}
 
-	user.Id = framework.GetIntId(rs.UrlParams["id"])
+	user.Id = framework.GetIntId(rs.UrlParamMap["id"])
 	if user.Id != -1 {
 		err = t.Fetch(user)
 		if err != nil {

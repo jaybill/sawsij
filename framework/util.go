@@ -7,11 +7,12 @@ import (
 	"archive/zip"
 
 	"bufio"
+	"code.google.com/p/go.crypto/bcrypt"
 	"crypto/md5"
 	"fmt"
-
 	"io"
 	"io/ioutil"
+	"log"
 	"math/rand"
 	"net/http"
 	"os"
@@ -22,9 +23,15 @@ import (
 
 // Return type constants, used in the switch for determining what format the response will be returned in.
 const (
-	RT_HTML = 0 // return HTML
-	RT_XML  = 1 // return XML
-	RT_JSON = 2 // return JSON
+	RT_HTML = 5 // return HTML
+	RT_XML  = 7 // return XML
+	RT_JSON = 9 // return JSON
+)
+
+// Constants for how to return URL parameters
+const (
+	PARAMS_MAP   = 13
+	PARAMS_ARRAY = 15
 )
 
 // GetIntId is a utility function for convertion a string into an int64. Useful for URL params.
@@ -39,7 +46,7 @@ func GetIntId(strId string) (intId int64) {
 }
 
 // GetUrlParams removes the string specified in "pattern" and returns key value pairs as a map of strings.
-func GetUrlParams(pattern string, urlPath string) (urlParams map[string]string) {
+func GetUrlParamsMap(pattern string, urlPath string) (urlParams map[string]string) {
 
 	rp := strings.NewReplacer(pattern, "")
 	restOfUrl := rp.Replace(urlPath)
@@ -51,46 +58,49 @@ func GetUrlParams(pattern string, urlPath string) (urlParams map[string]string) 
 	urlParams = make(map[string](string))
 	if len(restOfUrl) > 0 && strings.Contains(restOfUrl, "/") {
 		allUrlParts := strings.Split(restOfUrl, "/")
-
-		for i := 0; i < len(allUrlParts); i += 2 {
-			if i+1 < len(allUrlParts) {
-				urlParams[allUrlParts[i]] = allUrlParts[i+1]
+		log.Printf("Url part count: %v", len(allUrlParts))
+		if len(allUrlParts)%2 == 0 {
+			for i := 0; i < len(allUrlParts); i += 2 {
+				if i+1 < len(allUrlParts) {
+					urlParams[allUrlParts[i]] = allUrlParts[i+1]
+				}
 			}
+		} else {
+			log.Printf("Uneven number of params: %+v", allUrlParts)
 		}
 
 	}
+
 	return
 }
 
-// GetReturnType takes a pattern and determines the type of response being requested. Currently, "/json" is the only one implemented.
-func GetReturnType(url string) (rt int, restOfUrl string) {
-	jp := "/json"
-	if strings.Index(url, jp) == 0 {
-		jrp := strings.NewReplacer(jp, "")
-		restOfUrl = jrp.Replace(url)
-		rt = RT_JSON
-	}
+// GetUrlParams removes the string specified in "pattern" and returns key value pairs as a map of strings.
+func GetUrlParamsArray(pattern string, urlPath string) (urlParams []string) {
+	rp := strings.NewReplacer(pattern, "")
+	restOfUrl := rp.Replace(urlPath)
 
-	xp := "/xml"
-	if strings.Index(url, xp) == 0 {
-		xrp := strings.NewReplacer(xp, "")
-		restOfUrl = xrp.Replace(url)
-		rt = RT_XML
+	if strings.HasPrefix(restOfUrl, "/") {
+		restOfUrl = restOfUrl[1:len(restOfUrl)]
 	}
-
-	if len(restOfUrl) == 0 {
-		restOfUrl = url
-		rt = RT_HTML
-	}
-
+	urlParams = strings.Split(restOfUrl, "/")
 	return
 }
 
 func PasswordHash(password string, salt string) (hash string) {
-	h := md5.New()
-	io.WriteString(h, salt)
-	io.WriteString(h, password)
-	hash = fmt.Sprintf("%x", h.Sum(nil))
+	bHash, _ := bcrypt.GenerateFromPassword([]byte(salt+password), bcrypt.DefaultCost)
+	hash = string(bHash)
+	return
+}
+
+func CompareHashAndPassword(hash string, testPassword string, salt string) (valid bool) {
+
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(salt+testPassword))
+	if err == nil {
+		valid = true
+	} else {
+		valid = false
+	}
+
 	return
 }
 
