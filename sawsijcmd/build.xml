@@ -59,8 +59,11 @@ license that can be found in the LICENSE file.
 			<arg value="tag"/>	
 	  		<arg value="${tag}"/>
 		</exec>	
-		<property name="distfile" value="${ant.project.name}-${tag}.zip"/>		
+		<property name="distfile" value="${ant.project.name}-${tag}-${os.name}-${os.arch}.zip"/>		
         <hg cmd="push" dir="${basedir}"/>        
 		<zip destfile="${dist}/${distfile}" basedir="${build}"/>					
+	</target>
+	<target name="props">
+		<echoproperties/>
 	</target>
 </project>
