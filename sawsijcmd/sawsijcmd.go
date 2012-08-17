@@ -42,10 +42,7 @@ func main() {
 		sawsijhome = env["SAWSIJ_HOME"]
 	}
 
-	if env["GOPATH"] == "" {
-		fmt.Println("GOPATH environment variable is not set.")
-		os.Exit(1)
-	} else {
+	if env["GOPATH"] != "" {
 		gopath = env["GOPATH"]
 	}
 
@@ -392,7 +389,7 @@ Your username is "admin" and your password is the one you chose above.
 `
 	if itWorked {
 		fmt.Printf("%v %v %v\n", gobinpath, "install", appserver)
-		compileMessage, err := exec.Command(gobinpath, "install", appserver).Output()
+		compileMessage, err := exec.Command(gobinpath, "install", appserver).CombinedOutput()
 
 		if err != nil {
 			fmt.Println(string(compileMessage))
