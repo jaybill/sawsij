@@ -10,7 +10,7 @@ license that can be found in the LICENSE file.
     <!-- TARGET: message -->
 	<!-- displays a help message with available targets -->
 	<target name="message">
-		<echo message="Available targets are 'build' and 'dist'."/>
+		<echo message="Available targets are 'props' and 'seed'."/>
 	</target>	
 
     <propertyfile file="build.properties" comment="Build properties for ${ant.project.name}">  
@@ -20,49 +20,29 @@ license that can be found in the LICENSE file.
 	</propertyfile>  
 	<loadproperties srcfile="build.properties" />
 	<property name="cmdsrc" value="${sawsijsrc}/src/bitbucket.org/jaybill/sawsij/sawsijcmd"/>
-    <!-- TARGET: build -->
-	<!-- Build project and create archive. -->
-	<target name="build">
-	
-	    <echo message="Building sawsij..."/>
-    	<exec executable="go" >
-			<arg value="install"/>	
-	  		<arg value="bitbucket.org/jaybill/sawsij/framework"/>
-		</exec>
-		
-	    <echo message="Building sawsijcmd..."/>
-    	<exec executable="go" >
-			<arg value="install"/>	
-	  		<arg value="bitbucket.org/jaybill/sawsij/sawsijcmd"/>
-		</exec>
-		
+
+	<target name="seed">
 		<delete dir="${build}"/> 
-		<mkdir dir="${build}/sawsij/bin"/>
-		<mkdir dir="${build}/sawsij/seed"/>
-		<copy file="${sawsijsrc}/bin/sawsijcmd" todir="${build}/sawsij/bin"/>
-		<copy todir="${build}/sawsij/seed"><fileset dir="${cmdsrc}/seed"/></copy>	
-					
-	</target>		
-	<target name="dist" depends="build">
-		<!-- You will not be able to run this without write access to the sawsij repo. -->	
-		<taskdef resource="net/sourceforge/ant4hg/taskdefs/antlib.xml" />
-	 	<tstamp/>
-		<property name="tag" value="${DSTAMP}-${TSTAMP}"/>   		
-        <copy todir="${build}/sawsij">
+		<mkdir dir="${build}"/>
+
+		<property name="seeddir" value="${sawsijsrc}/src/bitbucket.org/jaybill/sawsij/sawsijcmd/seed"/>
+
+		<tstamp/>
+		<property name="tag" value="${DSTAMP}-${TSTAMP}"/>
+
+		<copy todir="${build}"><fileset dir="${seeddir}"/></copy>
+
+		<copy todir="${build}">
 		 <fileset dir="${cmdsrc}" includes="VERSION"/>
 		  <filterset>
 		  		<filter token="VERSION" value="${tag}"/>
 		  </filterset>
 		</copy>
-		<echo message="Tagging build ${tag}"/>
-		<exec executable="hg" >
-			<arg value="tag"/>	
-	  		<arg value="${tag}"/>
-		</exec>	
-		<property name="distfile" value="${ant.project.name}-${tag}-${os.name}-${os.arch}.zip"/>		
-        <hg cmd="push" dir="${basedir}"/>        
-		<zip destfile="${dist}/${distfile}" basedir="${build}"/>					
+
+		<zip destfile="${dist}/seed.zip" basedir="${build}"/>
+		<delete dir="${build}"/> 
 	</target>
+		
 	<target name="props">
 		<echoproperties/>
 	</target>
