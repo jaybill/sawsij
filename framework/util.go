@@ -214,6 +214,7 @@ func UnzipFileToPath(zipfile string, path string) (err error) {
 	// Open a zip archive for reading.
 	r, err := zip.OpenReader(zipfile)
 	if err != nil {
+		
 		return
 	}
 	defer r.Close()
@@ -235,27 +236,33 @@ func UnzipFileToPath(zipfile string, path string) (err error) {
 
 		err = os.MkdirAll(filepath, os.FileMode(0777))
 		if err != nil {
+			
 			return err
 		}
 
 		rc, err := f.Open()
 		defer rc.Close()
 		if err != nil {
-			return err
-		}
-		outfile, err := os.Create(filepath + "/" + filename)
-		if err != nil {
+			
 			return err
 		}
 
-		infile, err := ioutil.ReadAll(rc)
-		if err != nil {
-			return err
-		}
+		if !f.FileInfo().IsDir() {
+			outfile, err := os.Create(filepath + "/" + filename)
+			if err != nil {
+				
+				return err
+			}
 
-		_, err = outfile.Write(infile)
-		if err != nil {
-			return err
+			infile, err := ioutil.ReadAll(rc)
+			if err != nil {
+				return err
+			}
+
+			_, err = outfile.Write(infile)
+			if err != nil {
+				return err
+			}
 		}
 
 	}
