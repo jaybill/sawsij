@@ -35,9 +35,13 @@ func main() {
 	confdir = env["HOME"] + "/.sawsij"
 	envfile = confdir + "/sawsijenv"
 
+	if env["SAWSIJ_SETUP"] != "1" {
+		fmt.Println("Environment variables not set, running intial configuration...")
+		envSetup()
+	}
+
 	if env["SAWSIJ_HOME"] == "" {
-		fmt.Println("SAWSIJ_HOME environment variable is not set.")
-		os.Exit(1)
+		sawsijhome = confdir
 	} else {
 		sawsijhome = env["SAWSIJ_HOME"]
 	}
@@ -45,6 +49,8 @@ func main() {
 	if env["GOPATH"] != "" {
 		gopath = env["GOPATH"]
 	}
+
+	fmt.Printf("GOPATH is %v \n", gopath)
 
 	gobinpath, err = exec.LookPath("go")
 	if err != nil {
@@ -67,10 +73,6 @@ func main() {
 		os.Exit(1)
 	}
 	command := strings.TrimSpace(os.Args[1])
-
-	if env["SAWSIJ_SETUP"] != "1" {
-		envSetup()
-	}
 
 	switch command {
 	case "new":
@@ -117,14 +119,45 @@ export SAWSIJ_SETUP
 				fmt.Println(err)
 				os.Exit(1)
 			} else {
+
+				// Download seed file.
+				seedUrl := "https://bitbucket.org/jaybill/sawsij/downloads/seed.zip"
+
+				fmt.Println("Attempting to download seed...")
+
+				zipfile := confdir + "/seed.zip"
+				err = framework.CopyUrlToFile(seedUrl, zipfile)
+				if err != nil {
+					fmt.Println(err)
+					err = os.RemoveAll(confdir)
+					if err != nil {
+						fmt.Println(err)
+					}
+					os.Exit(1)
+				}
+
+				err = framework.UnzipFileToPath(zipfile, confdir+"/seed")
+				if err != nil {
+					fmt.Printf("Can't unzip file: %q\n", err.Error())
+					/*
+						err = os.RemoveAll(confdir)
+						if err != nil {
+							fmt.Println(err)
+						}*/
+					os.Exit(1)
+				}
+
 				fmt.Println("****************************\n** NOTICE! ACTION NEEDED! **\n****************************")
 				fmt.Println("A new file containing sawsij environment variables was created.")
 				fmt.Printf("You must add the line \"source $HOME/.sawsij/sawsijenv\" to the end of %v\n\n", env["HOME"]+"/.profile")
+
+				os.Exit(0)
 			}
 		}
 	} else {
 		fmt.Printf("Found env file %q\n", envfile)
 	}
+
 }
 
 func new() {
@@ -348,7 +381,7 @@ fi
 			fmt.Println(err)
 			itWorked = false
 		}
-		err = os.Setenv("GOPATH", env["GOPATH"]+":"+path)
+		err = os.Setenv("GOPATH", gopath+":"+path)
 		if err != nil {
 			fmt.Println(err)
 			itWorked = false
