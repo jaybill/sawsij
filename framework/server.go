@@ -369,77 +369,79 @@ func Configure(as *AppSetup, basePath string) (err error) {
 	appScope.Config = c
 
 	driver, err := c.Get("database.driver")
-	if err != nil {
-		log.Fatal(err)
-	}
-	connect, err := c.Get("database.connect")
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	db, err := sql.Open(driver, connect)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	dBconfigFilename := appScope.BasePath + "/etc/dbversions.yaml"
-	defaultSchema, allSchemas, err := model.ParseDbVersionsFile(dBconfigFilename)
+	if driver != "none" {
 
-	if err == nil {
+		connect, err := c.Get("database.connect")
+		if err != nil {
+			log.Fatal(err)
+		}
 
-		for _, schema := range allSchemas {
-			// TODO Remove hardcoded sql string, replace with driver based lookup (issue #11)
-			query := fmt.Sprintf("SELECT version_id from %v.sawsij_db_version ORDER BY ran_on DESC LIMIT 1;", schema.Name)
-			row := db.QueryRow(query)
-			var dbversion int64 = 0
+		db, err := sql.Open(driver, connect)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-			err = row.Scan(&dbversion)
-			if err != nil {
-				log.Fatal(err)
-			} else {
-				log.Printf("Schema: %v App: %v Db: %v", schema.Name, schema.Version, dbversion)
-				if schema.Version != dbversion {
+		dBconfigFilename := appScope.BasePath + "/etc/dbversions.yaml"
+		defaultSchema, allSchemas, err := model.ParseDbVersionsFile(dBconfigFilename)
 
-					if migrateAndExit {
-						dbs := &model.DbSetup{Db: db}
-						t := &model.Table{Db: dbs, Schema: schema.Name}
-						log.Printf("Running database migration on %q", schema.Name)
-						for i := dbversion + 1; i <= schema.Version; i++ {
-							scriptfile := fmt.Sprintf("%v/sql/changes/%v_%v_%04d.sql", appScope.BasePath, driver, schema.Name, i)
-							log.Printf("Running script %v", scriptfile)
+		if err == nil {
 
-							err = model.RunScript(db, scriptfile)
+			for _, schema := range allSchemas {
+				// TODO Remove hardcoded sql string, replace with driver based lookup (issue #11)
+				query := fmt.Sprintf("SELECT version_id from %v.sawsij_db_version ORDER BY ran_on DESC LIMIT 1;", schema.Name)
+				row := db.QueryRow(query)
+				var dbversion int64 = 0
+
+				err = row.Scan(&dbversion)
+				if err != nil {
+					log.Fatal(err)
+				} else {
+					log.Printf("Schema: %v App: %v Db: %v", schema.Name, schema.Version, dbversion)
+					if schema.Version != dbversion {
+
+						if migrateAndExit {
+							dbs := &model.DbSetup{Db: db}
+							t := &model.Table{Db: dbs, Schema: schema.Name}
+							log.Printf("Running database migration on %q", schema.Name)
+							for i := dbversion + 1; i <= schema.Version; i++ {
+								scriptfile := fmt.Sprintf("%v/sql/changes/%v_%v_%04d.sql", appScope.BasePath, driver, schema.Name, i)
+								log.Printf("Running script %v", scriptfile)
+
+								err = model.RunScript(db, scriptfile)
+								if err != nil {
+									log.Fatal(err)
+								}
+								dbv := &model.SawsijDbVersion{VersionId: i, RanOn: time.Now()}
+								t.Insert(dbv)
+
+							}
+							viewfile := fmt.Sprintf("%v/sql/objects/%v_%v_views.sql", appScope.BasePath, driver, schema.Name)
+							log.Printf("Running script %v", viewfile)
+							err = model.RunScript(db, viewfile)
 							if err != nil {
 								log.Fatal(err)
 							}
-							dbv := &model.SawsijDbVersion{VersionId: i, RanOn: time.Now()}
-							t.Insert(dbv)
 
-						}
-						viewfile := fmt.Sprintf("%v/sql/objects/%v_%v_views.sql", appScope.BasePath, driver, schema.Name)
-						log.Printf("Running script %v", viewfile)
-						err = model.RunScript(db, viewfile)
-						if err != nil {
-							log.Fatal(err)
+						} else {
+							log.Fatal("Schema/App version mismatch. Please run migrate to update the database.")
 						}
 
-					} else {
-						log.Fatal("Schema/App version mismatch. Please run migrate to update the database.")
 					}
-
 				}
+
 			}
-
+			appScope.Db = &model.DbSetup{Db: db, DefaultSchema: defaultSchema, Schemas: allSchemas}
+			if migrateAndExit {
+				log.Print("All schemas updated. Exiting.")
+				os.Exit(0)
+			}
 		}
-		appScope.Db = &model.DbSetup{Db: db, DefaultSchema: defaultSchema, Schemas: allSchemas}
-		if migrateAndExit {
-			log.Print("All schemas updated. Exiting.")
-			os.Exit(0)
-		}
-
-	} else {
-		log.Fatal(err)
-	}
+	} 
 
 	key, err := c.Get("encryption.key")
 	if err != nil {

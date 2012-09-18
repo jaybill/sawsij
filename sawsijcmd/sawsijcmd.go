@@ -178,27 +178,35 @@ func new() {
 	path, _ = framework.GetUserInput("Application path", path)
 
 	config["port"], _ = framework.GetUserInput("Server Port", "8078")
-	config["admin_email"], _ = framework.GetUserInput("Admin Email", name+"@"+name+".com")
-	password := ""
-	for password == "" {
-		password, _ = framework.GetUserInput("Admin Password", password)
+
+	doDb, _ := framework.GetUserInput("Configure database?", "Y")
+
+	if doDb == "Y" {
+
+		fmt.Println("****************************\n** DATABASE CONFIGURATION **\n****************************")
+
+		config["driver"], _ = framework.GetUserInput("Database driver", "postgres")
+		dbname, _ := framework.GetUserInput("Database name", name)
+		config["schema"], _ = framework.GetUserInput("Database schema", name)
+		dbuser, _ := framework.GetUserInput("Database user", name)
+		dbpass, _ := framework.GetUserInput("Database password", "")
+		dbssl, _ := framework.GetUserInput("Database SSL Mode", "disable")
+		config["connect"] = fmt.Sprintf("user=%v password=%v dbname=%v sslmode=%v", dbuser, dbpass, dbname, dbssl)
+		fmt.Println("****************************\n**   ADMIN ACCOUNT SETUP  **\n****************************")
+		config["admin_email"], _ = framework.GetUserInput("Admin Email", name+"@"+name+".com")
+		password := ""
+		for password == "" {
+			password, _ = framework.GetUserInput("Admin Password", password)
+		}
+		config["password_hash"] = framework.PasswordHash(password, config["salt"])
+	} else {
+		config["driver"] = "none"
+		config["schema"] = ""
+		config["connect"] = ""
 	}
-
-	fmt.Println("****************************\n** DATABASE CONFIGURATION **\n****************************")
-
-	config["driver"], _ = framework.GetUserInput("Database driver", "postgres")
-	dbname, _ := framework.GetUserInput("Database name", name)
-	config["schema"], _ = framework.GetUserInput("Database schema", name)
-	dbuser, _ := framework.GetUserInput("Database user", name)
-	dbpass, _ := framework.GetUserInput("Database password", "")
-	dbssl, _ := framework.GetUserInput("Database SSL Mode", "disable")
-
-	config["connect"] = fmt.Sprintf("user=%v password=%v dbname=%v sslmode=%v", dbuser, dbpass, dbname, dbssl)
 
 	config["salt"] = framework.MakeRandomId()
 	config["key"] = framework.MakeRandomId()
-
-	config["password_hash"] = framework.PasswordHash(password, config["salt"])
 
 	fmt.Printf("Creating new sawsij app %q in location %v\n", name, path)
 
@@ -246,32 +254,37 @@ func new() {
 		}
 	}
 
-	var tpls = []struct {
+	type TplDef struct {
 		Name string
 		Dest string
-	}{
-		{"admin.html.tpl", path + "/templates/admin.html"},
-		{"admin-users.html.tpl", path + "/templates/admin-users.html"},
-		{"admin-users-delete.html.tpl", path + "/templates/admin-users-delete.html"},
-		{"admin-users-edit.html.tpl", path + "/templates/admin-users-edit.html"},
-		{"admin-footer.html.tpl", path + "/templates/admin-footer.html"},
-		{"admin-header.html.tpl", path + "/templates/admin-header.html"},
-		{"appserver.go.tpl", path + "/src/" + appserver + "/" + appserver + ".go"},
-		{"config.yaml.tpl", path + "/etc/config.yaml"},
-		{"dbversions.yaml.tpl", path + "/etc/dbversions.yaml"},
-		{"constants.go.tpl", path + "/src/" + name + "/constants.go"},
-		{"footer.html.tpl", path + "/templates/footer.html"},
-		{"header.html.tpl", path + "/templates/header.html"},
-		{"index.html.tpl", path + "/templates/index.html"},
-		{"login.html.tpl", path + "/templates/login.html"},
-		{"denied.html.tpl", path + "/templates/denied.html"},
-		{"error.html.tpl", path + "/templates/error.html"},
-		{"messages.html.tpl", path + "/templates/messages.html"},
-		{"license.tpl", path + "/LICENSE"},
-		{config["driver"] + "_0001.sql.tpl", path + "/sql/changes/" + config["driver"] + "_" + config["schema"] + "_0001.sql"},
-		{config["driver"] + "_views.sql.tpl", path + "/sql/objects/" + config["driver"] + "_" + config["schema"] + "_views.sql"},
-		{"user.go.tpl", path + "/src/" + name + "/user.go"},
 	}
+
+	var tpls []TplDef
+	tpls = append(tpls, TplDef{"admin.html.tpl", path + "/templates/admin.html"})
+	tpls = append(tpls, TplDef{"admin-users.html.tpl", path + "/templates/admin-users.html"})
+	tpls = append(tpls, TplDef{"admin-users-delete.html.tpl", path + "/templates/admin-users-delete.html"})
+	tpls = append(tpls, TplDef{"admin-users-edit.html.tpl", path + "/templates/admin-users-edit.html"})
+	tpls = append(tpls, TplDef{"admin-footer.html.tpl", path + "/templates/admin-footer.html"})
+	tpls = append(tpls, TplDef{"admin-header.html.tpl", path + "/templates/admin-header.html"})
+	tpls = append(tpls, TplDef{"appserver.go.tpl", path + "/src/" + appserver + "/" + appserver + ".go"})
+	tpls = append(tpls, TplDef{"config.yaml.tpl", path + "/etc/config.yaml"})
+	tpls = append(tpls, TplDef{"dbversions.yaml.tpl", path + "/etc/dbversions.yaml"})
+	tpls = append(tpls, TplDef{"constants.go.tpl", path + "/src/" + name + "/constants.go"})
+	tpls = append(tpls, TplDef{"footer.html.tpl", path + "/templates/footer.html"})
+	tpls = append(tpls, TplDef{"header.html.tpl", path + "/templates/header.html"})
+	tpls = append(tpls, TplDef{"index.html.tpl", path + "/templates/index.html"})
+	tpls = append(tpls, TplDef{"login.html.tpl", path + "/templates/login.html"})
+	tpls = append(tpls, TplDef{"denied.html.tpl", path + "/templates/denied.html"})
+	tpls = append(tpls, TplDef{"error.html.tpl", path + "/templates/error.html"})
+	tpls = append(tpls, TplDef{"messages.html.tpl", path + "/templates/messages.html"})
+	tpls = append(tpls, TplDef{"license.tpl", path + "/LICENSE"})
+	tpls = append(tpls, TplDef{"user.go.tpl", path + "/src/" + name + "/user.go"})
+
+	if doDb == "Y" {
+		tpls = append(tpls, TplDef{config["driver"] + "_0001.sql.tpl", path + "/sql/changes/" + config["driver"] + "_" + config["schema"] + "_0001.sql"})
+		tpls = append(tpls, TplDef{config["driver"] + "_views.sql.tpl", path + "/sql/objects/" + config["driver"] + "_" + config["schema"] + "_views.sql"})
+	}
+
 	if itWorked {
 		for _, t := range tpls {
 			fmt.Printf("Parsing template %v\n", t.Name)
@@ -305,7 +318,8 @@ func new() {
 		}
 	}
 
-	if itWorked {
+	if itWorked && doDb == "Y" {
+
 		db, err := sql.Open(config["driver"], config["connect"])
 		if err != nil {
 			fmt.Println(err)
@@ -417,9 +431,9 @@ cd %v
 
 You can then point a browser at http://localhost:%v
 
-The admin panel is at http://localhost:%v/admin
-Your username is "admin" and your password is the one you chose above.
+
 `
+
 	if itWorked {
 		fmt.Printf("%v %v %v\n", gobinpath, "install", appserver)
 		compileMessage, err := exec.Command(gobinpath, "install", appserver).CombinedOutput()
@@ -430,7 +444,12 @@ Your username is "admin" and your password is the one you chose above.
 			itWorked = false
 		} else {
 
-			fmt.Printf(cm, path, path, appserver, config["port"], config["port"])
+			fmt.Printf(cm, path, path, appserver, config["port"])
+			if doDb == "Y" {
+				cm2 := `The admin panel is at http://localhost:%v/admin
+Your username is "admin" and your password is the one you chose above.`
+				fmt.Printf(cm2, config["port"])
+			}
 		}
 	}
 
