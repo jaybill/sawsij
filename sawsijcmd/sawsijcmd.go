@@ -433,7 +433,10 @@ You can then point a browser at http://localhost:%v
 
 
 `
+	cm2 := `The admin panel is at http://localhost:%v/admin
+Your username is "admin" and your password is the one you chose above.
 
+`
 	if itWorked {
 		fmt.Printf("%v %v %v\n", gobinpath, "install", appserver)
 		compileMessage, err := exec.Command(gobinpath, "install", appserver).CombinedOutput()
@@ -446,8 +449,6 @@ You can then point a browser at http://localhost:%v
 
 			fmt.Printf(cm, path, path, appserver, config["port"])
 			if doDb == "Y" {
-				cm2 := `The admin panel is at http://localhost:%v/admin
-Your username is "admin" and your password is the one you chose above.`
 				fmt.Printf(cm2, config["port"])
 			}
 		}
