@@ -76,9 +76,12 @@ type User interface {
 // session mangement.
 // Roles is a map of ints with string keys that allow you to make role identifiers available by name from within templates. This isn't
 // checked in any way and is solely for ease of use.
+// TemplateFuncs is a map of functions that can be called from your templates. If you make the keys the same as any of the built in functions,
+// you'll effectively override it.
 type AppSetup struct {
-	GetUser func(username string, a *AppScope) User
-	Roles   *map[string]int
+	GetUser       func(username string, a *AppScope) User
+	Roles         *map[string]int
+	TemplateFuncs template.FuncMap
 }
 
 var store *sessions.CookieStore
@@ -108,7 +111,13 @@ func parseTemplates() {
 	}
 	log.Printf("Templates: %v", templateFiles)
 	if len(templateFiles) > 0 {
-		pt, err := template.New("dummy").Delims("<%", "%>").Funcs(GetFuncMap()).ParseFiles(templateFiles...)
+		fnm := GetFuncMap()
+		if len(appScope.Setup.TemplateFuncs) > 0 {
+			for name, fn := range appScope.Setup.TemplateFuncs {
+				fnm[name] = fn
+			}
+		}
+		pt, err := template.New("dummy").Delims("<%", "%>").Funcs(fnm).ParseFiles(templateFiles...)
 		parsedTemplate = pt
 		if err != nil {
 			log.Print(err)
@@ -298,12 +307,14 @@ func Route(rcfg RouteConfig) {
 					}
 					log.Printf("Using template file %v", templateFilename)
 					// Add "global" template variables
-					if len(global) > 0 && handlerResults.View != nil {
-
-						global["roles"] = *appScope.Setup.Roles
-						global["url"] = rcfg.Pattern
+					global["roles"] = *appScope.Setup.Roles
+					global["url"] = rcfg.Pattern
+					log.Printf("URL sent to template: %v", global["url"])
+					if len(global) > 0 {
+						if handlerResults.View == nil {
+							handlerResults.Init()
+						}
 						handlerResults.View["global"] = global
-
 					}
 					err = parsedTemplate.ExecuteTemplate(w, templateFilename, handlerResults.View)
 					if err != nil {
@@ -441,7 +452,7 @@ func Configure(as *AppSetup, basePath string) (err error) {
 				os.Exit(0)
 			}
 		}
-	} 
+	}
 
 	key, err := c.Get("encryption.key")
 	if err != nil {
