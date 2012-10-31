@@ -29,7 +29,6 @@ As currently implemented, both your table and your struct must have an identity 
 package model
 
 import (
-	_ "database/sql"
 	"database/sql"
 	"fmt"
 	"github.com/kylelemons/go-gypsy/yaml"
