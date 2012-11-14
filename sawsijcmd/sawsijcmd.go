@@ -495,7 +495,7 @@ func factory() {
 		basePath = string(os.Args[2])
 		sName = string(os.Args[3])
 		tName = string(os.Args[4])
-		fmt.Println("Starting scaffold...")
+
 		fmt.Printf("Basedir: %v\n", basePath)
 		fmt.Printf("Table: %v\n", tName)
 
@@ -592,8 +592,6 @@ func factory() {
 		tV["pName"] = pName
 		tV["struct"] = sA
 
-		fmt.Printf("Struct: %+v\n", tV)
-
 		type sTplDef struct {
 			Source string
 			Dest   string
@@ -608,8 +606,6 @@ func factory() {
 		tpls = append(tpls, sTplDef{"admin.html.tpl", fmt.Sprintf("%v/templates/admin-%v.html", basePath, fName)})
 		tpls = append(tpls, sTplDef{"handler.go.tpl", fmt.Sprintf("%v/src/%v/%v.go", basePath, pName, fName)})
 
-		//fmt.Printf("%+v", tpls)
-
 		for _, tpl := range tpls {
 			t, err := framework.ReadFileIntoString(basePath + "/templates/crud/" + tpl.Source)
 
@@ -618,16 +614,18 @@ func factory() {
 			}
 
 			err = framework.ParseTemplate(t, tV, tpl.Dest)
+			fmt.Printf("%v\n", tpl.Dest)
+
 			if err != nil {
 				bomb(err)
 			}
 		}
 
+		fmt.Printf("Generated handler and templates for %v.%v\n", sName, tName)
+
 	} else {
 		bomb(err)
 	}
-
-	// parse templates
 
 }
 
