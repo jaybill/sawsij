@@ -603,6 +603,7 @@ func factory() {
 
 		tpls = append(tpls, sTplDef{"admin-delete.html.tpl", fmt.Sprintf("%v/templates/admin-%v-delete.html", basePath, fName)})
 		tpls = append(tpls, sTplDef{"admin-edit.html.tpl", fmt.Sprintf("%v/templates/admin-%v-edit.html", basePath, fName)})
+
 		tpls = append(tpls, sTplDef{"admin.html.tpl", fmt.Sprintf("%v/templates/admin-%v.html", basePath, fName)})
 		tpls = append(tpls, sTplDef{"handler.go.tpl", fmt.Sprintf("%v/src/%v/%v.go", basePath, pName, fName)})
 
