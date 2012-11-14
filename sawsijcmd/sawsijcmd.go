@@ -2,9 +2,10 @@ package main
 
 import (
 	"bitbucket.org/jaybill/sawsij/framework"
-
+	"bitbucket.org/jaybill/sawsij/framework/model"
 	"database/sql"
 	"fmt"
+	"github.com/kylelemons/go-gypsy/yaml"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -77,8 +78,8 @@ func main() {
 	switch command {
 	case "new":
 		new()
-	case "crudify":
-		// TODO create DAL and CRUD based on database table (issue #12)
+	case "factory":
+		factory()
 	default:
 		fmt.Printf("Command %q not recognized.\n", command)
 		os.Exit(1)
@@ -316,6 +317,13 @@ func new() {
 			fmt.Println(err)
 			itWorked = false
 		}
+
+		err = framework.CopyDir(seeddir+"/crud", path+"/templates/crud")
+		if err != nil {
+			fmt.Println(err)
+			itWorked = false
+		}
+
 	}
 
 	if itWorked && doDb == "Y" {
@@ -472,4 +480,158 @@ Your application could not be built. Please see above for detailed error message
 
 	}
 
+}
+
+func factory() {
+	var basePath string
+	var tName string
+	var sName string
+
+	fmt.Println("****************************\n**     SAWSIJ FACTORY     **\n****************************")
+
+	// get command line args
+	if len(os.Args) == 5 {
+
+		basePath = string(os.Args[2])
+		sName = string(os.Args[3])
+		tName = string(os.Args[4])
+		fmt.Println("Starting scaffold...")
+		fmt.Printf("Basedir: %v\n", basePath)
+		fmt.Printf("Table: %v\n", tName)
+
+	} else {
+		fmt.Println("Usage: sawsijcmd factory [basedir] [schema] [table]")
+		os.Exit(1)
+	}
+
+	// read config file
+
+	configFilename := basePath + "/etc/config.yaml"
+
+	fmt.Printf("Using config file [%v]\n", configFilename)
+
+	c, err := yaml.ReadFile(configFilename)
+	if err != nil {
+		bomb(err)
+	}
+
+	// determine package name
+
+	pName, err := c.Get("app.pkg")
+
+	if err != nil {
+		bomb(err)
+	} else {
+		fmt.Printf("Package name is [%v]\n", pName)
+	}
+
+	// set up database connection
+
+	driver, err := c.Get("database.driver")
+
+	if err != nil {
+		bomb(err)
+	}
+
+	connect, err := c.Get("database.connect")
+	if err != nil {
+		bomb(err)
+	}
+
+	db, err := sql.Open(driver, connect)
+	if err != nil {
+		bomb(err)
+	}
+
+	query := "select column_name,data_type from information_schema.columns where table_name = $1 and table_schema = $2 order by ordinal_position desc;"
+
+	rows, err := db.Query(query, tName, sName)
+	tV := make(map[string]interface{})
+
+	type fieldDef struct {
+		FName string
+		FType string
+	}
+	var sA []fieldDef
+	if err == nil {
+
+		for rows.Next() {
+			var colName string
+			var dType string
+
+			err = rows.Scan(&colName, &dType)
+			if err != nil {
+				bomb(err)
+			}
+
+			var sType string
+
+			switch dType {
+
+			case "bigint":
+				sType = "int64"
+			case "integer":
+				sType = "int64"
+			case "timestamp without time zone":
+				sType = "time.Time"
+				tV["importTime"] = true
+			case "text":
+				sType = "string"
+			case "character varying":
+				sType = "string"
+			default:
+				sType = "string"
+			}
+
+			sA = append(sA, fieldDef{model.MakeFieldName(colName), sType})
+
+		}
+
+		tV["typeName"] = model.MakeFieldName(tName)
+		tV["typeVar"] = strings.ToLower(model.MakeFieldName(tName))
+		tV["pName"] = pName
+		tV["struct"] = sA
+
+		fmt.Printf("Struct: %+v\n", tV)
+
+		type sTplDef struct {
+			Source string
+			Dest   string
+		}
+
+		var tpls []sTplDef
+
+		fName := strings.ToLower(model.MakeFieldName(tName))
+
+		tpls = append(tpls, sTplDef{"admin-delete.html.tpl", fmt.Sprintf("%v/templates/admin-%v-delete.html", basePath, fName)})
+		tpls = append(tpls, sTplDef{"admin-edit.html.tpl", fmt.Sprintf("%v/templates/admin-%v-edit.html", basePath, fName)})
+		tpls = append(tpls, sTplDef{"admin.html.tpl", fmt.Sprintf("%v/templates/admin-%v.html", basePath, fName)})
+		tpls = append(tpls, sTplDef{"handler.go.tpl", fmt.Sprintf("%v/src/%v/%v.go", basePath, pName, fName)})
+
+		//fmt.Printf("%+v", tpls)
+
+		for _, tpl := range tpls {
+			t, err := framework.ReadFileIntoString(basePath + "/templates/crud/" + tpl.Source)
+
+			if err != nil {
+				bomb(err)
+			}
+
+			err = framework.ParseTemplate(t, tV, tpl.Dest)
+			if err != nil {
+				bomb(err)
+			}
+		}
+
+	} else {
+		bomb(err)
+	}
+
+	// parse templates
+
+}
+
+func bomb(err error) {
+	fmt.Println(err)
+	os.Exit(1)
 }
