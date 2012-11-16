@@ -180,6 +180,9 @@ func new() {
 
 	config["port"], _ = framework.GetUserInput("Server Port", "8078")
 
+	config["salt"] = framework.MakeRandomId()
+	config["key"] = framework.MakeRandomId()
+
 	doDb, _ := framework.GetUserInput("Configure database?", "Y")
 
 	if doDb == "Y" {
@@ -205,9 +208,6 @@ func new() {
 		config["schema"] = ""
 		config["connect"] = ""
 	}
-
-	config["salt"] = framework.MakeRandomId()
-	config["key"] = framework.MakeRandomId()
 
 	fmt.Printf("Creating new sawsij app %q in location %v\n", name, path)
 
