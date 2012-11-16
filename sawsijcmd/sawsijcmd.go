@@ -2,9 +2,10 @@ package main
 
 import (
 	"bitbucket.org/jaybill/sawsij/framework"
-
+	"bitbucket.org/jaybill/sawsij/framework/model"
 	"database/sql"
 	"fmt"
+	"github.com/kylelemons/go-gypsy/yaml"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -77,8 +78,8 @@ func main() {
 	switch command {
 	case "new":
 		new()
-	case "crudify":
-		// TODO create DAL and CRUD based on database table (issue #12)
+	case "factory":
+		factory()
 	default:
 		fmt.Printf("Command %q not recognized.\n", command)
 		os.Exit(1)
@@ -178,27 +179,35 @@ func new() {
 	path, _ = framework.GetUserInput("Application path", path)
 
 	config["port"], _ = framework.GetUserInput("Server Port", "8078")
-	config["admin_email"], _ = framework.GetUserInput("Admin Email", name+"@"+name+".com")
-	password := ""
-	for password == "" {
-		password, _ = framework.GetUserInput("Admin Password", password)
-	}
-
-	fmt.Println("****************************\n** DATABASE CONFIGURATION **\n****************************")
-
-	config["driver"], _ = framework.GetUserInput("Database driver", "postgres")
-	dbname, _ := framework.GetUserInput("Database name", name)
-	config["schema"], _ = framework.GetUserInput("Database schema", name)
-	dbuser, _ := framework.GetUserInput("Database user", name)
-	dbpass, _ := framework.GetUserInput("Database password", "")
-	dbssl, _ := framework.GetUserInput("Database SSL Mode", "disable")
-
-	config["connect"] = fmt.Sprintf("user=%v password=%v dbname=%v sslmode=%v", dbuser, dbpass, dbname, dbssl)
 
 	config["salt"] = framework.MakeRandomId()
 	config["key"] = framework.MakeRandomId()
 
-	config["password_hash"] = framework.PasswordHash(password, config["salt"])
+	doDb, _ := framework.GetUserInput("Configure database?", "Y")
+
+	if doDb == "Y" {
+
+		fmt.Println("****************************\n** DATABASE CONFIGURATION **\n****************************")
+
+		config["driver"], _ = framework.GetUserInput("Database driver", "postgres")
+		dbname, _ := framework.GetUserInput("Database name", name)
+		config["schema"], _ = framework.GetUserInput("Database schema", name)
+		dbuser, _ := framework.GetUserInput("Database user", name)
+		dbpass, _ := framework.GetUserInput("Database password", "")
+		dbssl, _ := framework.GetUserInput("Database SSL Mode", "disable")
+		config["connect"] = fmt.Sprintf("user=%v password=%v dbname=%v sslmode=%v", dbuser, dbpass, dbname, dbssl)
+		fmt.Println("****************************\n**   ADMIN ACCOUNT SETUP  **\n****************************")
+		config["admin_email"], _ = framework.GetUserInput("Admin Email", name+"@"+name+".com")
+		password := ""
+		for password == "" {
+			password, _ = framework.GetUserInput("Admin Password", password)
+		}
+		config["password_hash"] = framework.PasswordHash(password, config["salt"])
+	} else {
+		config["driver"] = "none"
+		config["schema"] = ""
+		config["connect"] = ""
+	}
 
 	fmt.Printf("Creating new sawsij app %q in location %v\n", name, path)
 
@@ -246,32 +255,37 @@ func new() {
 		}
 	}
 
-	var tpls = []struct {
+	type TplDef struct {
 		Name string
 		Dest string
-	}{
-		{"admin.html.tpl", path + "/templates/admin.html"},
-		{"admin-users.html.tpl", path + "/templates/admin-users.html"},
-		{"admin-users-delete.html.tpl", path + "/templates/admin-users-delete.html"},
-		{"admin-users-edit.html.tpl", path + "/templates/admin-users-edit.html"},
-		{"admin-footer.html.tpl", path + "/templates/admin-footer.html"},
-		{"admin-header.html.tpl", path + "/templates/admin-header.html"},
-		{"appserver.go.tpl", path + "/src/" + appserver + "/" + appserver + ".go"},
-		{"config.yaml.tpl", path + "/etc/config.yaml"},
-		{"dbversions.yaml.tpl", path + "/etc/dbversions.yaml"},
-		{"constants.go.tpl", path + "/src/" + name + "/constants.go"},
-		{"footer.html.tpl", path + "/templates/footer.html"},
-		{"header.html.tpl", path + "/templates/header.html"},
-		{"index.html.tpl", path + "/templates/index.html"},
-		{"login.html.tpl", path + "/templates/login.html"},
-		{"denied.html.tpl", path + "/templates/denied.html"},
-		{"error.html.tpl", path + "/templates/error.html"},
-		{"messages.html.tpl", path + "/templates/messages.html"},
-		{"license.tpl", path + "/LICENSE"},
-		{config["driver"] + "_0001.sql.tpl", path + "/sql/changes/" + config["driver"] + "_" + config["schema"] + "_0001.sql"},
-		{config["driver"] + "_views.sql.tpl", path + "/sql/objects/" + config["driver"] + "_" + config["schema"] + "_views.sql"},
-		{"user.go.tpl", path + "/src/" + name + "/user.go"},
 	}
+
+	var tpls []TplDef
+	tpls = append(tpls, TplDef{"admin.html.tpl", path + "/templates/admin.html"})
+	tpls = append(tpls, TplDef{"admin-users.html.tpl", path + "/templates/admin-users.html"})
+	tpls = append(tpls, TplDef{"admin-users-delete.html.tpl", path + "/templates/admin-users-delete.html"})
+	tpls = append(tpls, TplDef{"admin-users-edit.html.tpl", path + "/templates/admin-users-edit.html"})
+	tpls = append(tpls, TplDef{"admin-footer.html.tpl", path + "/templates/admin-footer.html"})
+	tpls = append(tpls, TplDef{"admin-header.html.tpl", path + "/templates/admin-header.html"})
+	tpls = append(tpls, TplDef{"appserver.go.tpl", path + "/src/" + appserver + "/" + appserver + ".go"})
+	tpls = append(tpls, TplDef{"config.yaml.tpl", path + "/etc/config.yaml"})
+	tpls = append(tpls, TplDef{"dbversions.yaml.tpl", path + "/etc/dbversions.yaml"})
+	tpls = append(tpls, TplDef{"constants.go.tpl", path + "/src/" + name + "/constants.go"})
+	tpls = append(tpls, TplDef{"footer.html.tpl", path + "/templates/footer.html"})
+	tpls = append(tpls, TplDef{"header.html.tpl", path + "/templates/header.html"})
+	tpls = append(tpls, TplDef{"index.html.tpl", path + "/templates/index.html"})
+	tpls = append(tpls, TplDef{"login.html.tpl", path + "/templates/login.html"})
+	tpls = append(tpls, TplDef{"denied.html.tpl", path + "/templates/denied.html"})
+	tpls = append(tpls, TplDef{"error.html.tpl", path + "/templates/error.html"})
+	tpls = append(tpls, TplDef{"messages.html.tpl", path + "/templates/messages.html"})
+	tpls = append(tpls, TplDef{"license.tpl", path + "/LICENSE"})
+	tpls = append(tpls, TplDef{"user.go.tpl", path + "/src/" + name + "/user.go"})
+
+	if doDb == "Y" {
+		tpls = append(tpls, TplDef{config["driver"] + "_0001.sql.tpl", path + "/sql/changes/" + config["driver"] + "_" + config["schema"] + "_0001.sql"})
+		tpls = append(tpls, TplDef{config["driver"] + "_views.sql.tpl", path + "/sql/objects/" + config["driver"] + "_" + config["schema"] + "_views.sql"})
+	}
+
 	if itWorked {
 		for _, t := range tpls {
 			fmt.Printf("Parsing template %v\n", t.Name)
@@ -303,9 +317,17 @@ func new() {
 			fmt.Println(err)
 			itWorked = false
 		}
+
+		err = framework.CopyDir(seeddir+"/crud", path+"/templates/crud")
+		if err != nil {
+			fmt.Println(err)
+			itWorked = false
+		}
+
 	}
 
-	if itWorked {
+	if itWorked && doDb == "Y" {
+
 		db, err := sql.Open(config["driver"], config["connect"])
 		if err != nil {
 			fmt.Println(err)
@@ -417,8 +439,11 @@ cd %v
 
 You can then point a browser at http://localhost:%v
 
-The admin panel is at http://localhost:%v/admin
+
+`
+	cm2 := `The admin panel is at http://localhost:%v/admin
 Your username is "admin" and your password is the one you chose above.
+
 `
 	if itWorked {
 		fmt.Printf("%v %v %v\n", gobinpath, "install", appserver)
@@ -430,7 +455,10 @@ Your username is "admin" and your password is the one you chose above.
 			itWorked = false
 		} else {
 
-			fmt.Printf(cm, path, path, appserver, config["port"], config["port"])
+			fmt.Printf(cm, path, path, appserver, config["port"])
+			if doDb == "Y" {
+				fmt.Printf(cm2, config["port"])
+			}
 		}
 	}
 
@@ -452,4 +480,157 @@ Your application could not be built. Please see above for detailed error message
 
 	}
 
+}
+
+func factory() {
+	var basePath string
+	var tName string
+	var sName string
+
+	fmt.Println("****************************\n**     SAWSIJ FACTORY     **\n****************************")
+
+	// get command line args
+	if len(os.Args) == 5 {
+
+		basePath = string(os.Args[2])
+		sName = string(os.Args[3])
+		tName = string(os.Args[4])
+
+		fmt.Printf("Basedir: %v\n", basePath)
+		fmt.Printf("Table: %v\n", tName)
+
+	} else {
+		fmt.Println("Usage: sawsijcmd factory [basedir] [schema] [table]")
+		os.Exit(1)
+	}
+
+	// read config file
+
+	configFilename := basePath + "/etc/config.yaml"
+
+	fmt.Printf("Using config file [%v]\n", configFilename)
+
+	c, err := yaml.ReadFile(configFilename)
+	if err != nil {
+		bomb(err)
+	}
+
+	// determine package name
+
+	pName, err := c.Get("app.pkg")
+
+	if err != nil {
+		bomb(err)
+	} else {
+		fmt.Printf("Package name is [%v]\n", pName)
+	}
+
+	// set up database connection
+
+	driver, err := c.Get("database.driver")
+
+	if err != nil {
+		bomb(err)
+	}
+
+	connect, err := c.Get("database.connect")
+	if err != nil {
+		bomb(err)
+	}
+
+	db, err := sql.Open(driver, connect)
+	if err != nil {
+		bomb(err)
+	}
+
+	query := "select column_name,data_type from information_schema.columns where table_name = $1 and table_schema = $2 order by ordinal_position desc;"
+
+	rows, err := db.Query(query, tName, sName)
+	tV := make(map[string]interface{})
+
+	type fieldDef struct {
+		FName string
+		FType string
+	}
+	var sA []fieldDef
+	if err == nil {
+
+		for rows.Next() {
+			var colName string
+			var dType string
+
+			err = rows.Scan(&colName, &dType)
+			if err != nil {
+				bomb(err)
+			}
+
+			var sType string
+
+			switch dType {
+
+			case "bigint":
+				sType = "int64"
+			case "integer":
+				sType = "int64"
+			case "timestamp without time zone":
+				sType = "time.Time"
+				tV["importTime"] = true
+			case "text":
+				sType = "string"
+			case "character varying":
+				sType = "string"
+			default:
+				sType = "string"
+			}
+
+			sA = append(sA, fieldDef{model.MakeFieldName(colName), sType})
+
+		}
+
+		tV["typeName"] = model.MakeFieldName(tName)
+		tV["typeVar"] = strings.ToLower(model.MakeFieldName(tName))
+		tV["pName"] = pName
+		tV["struct"] = sA
+
+		type sTplDef struct {
+			Source string
+			Dest   string
+		}
+
+		var tpls []sTplDef
+
+		fName := strings.ToLower(model.MakeFieldName(tName))
+
+		tpls = append(tpls, sTplDef{"admin-delete.html.tpl", fmt.Sprintf("%v/templates/admin-%v-delete.html", basePath, fName)})
+		tpls = append(tpls, sTplDef{"admin-edit.html.tpl", fmt.Sprintf("%v/templates/admin-%v-edit.html", basePath, fName)})
+
+		tpls = append(tpls, sTplDef{"admin.html.tpl", fmt.Sprintf("%v/templates/admin-%v.html", basePath, fName)})
+		tpls = append(tpls, sTplDef{"handler.go.tpl", fmt.Sprintf("%v/src/%v/%v.go", basePath, pName, fName)})
+
+		for _, tpl := range tpls {
+			t, err := framework.ReadFileIntoString(basePath + "/templates/crud/" + tpl.Source)
+
+			if err != nil {
+				bomb(err)
+			}
+
+			err = framework.ParseTemplate(t, tV, tpl.Dest)
+			fmt.Printf("%v\n", tpl.Dest)
+
+			if err != nil {
+				bomb(err)
+			}
+		}
+
+		fmt.Printf("Generated handler and templates for %v.%v\n", sName, tName)
+
+	} else {
+		bomb(err)
+	}
+
+}
+
+func bomb(err error) {
+	fmt.Println(err)
+	os.Exit(1)
 }

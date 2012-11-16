@@ -19,6 +19,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 )
 
@@ -214,7 +215,7 @@ func UnzipFileToPath(zipfile string, path string) (err error) {
 	// Open a zip archive for reading.
 	r, err := zip.OpenReader(zipfile)
 	if err != nil {
-		
+
 		return
 	}
 	defer r.Close()
@@ -236,21 +237,21 @@ func UnzipFileToPath(zipfile string, path string) (err error) {
 
 		err = os.MkdirAll(filepath, os.FileMode(0777))
 		if err != nil {
-			
+
 			return err
 		}
 
 		rc, err := f.Open()
 		defer rc.Close()
 		if err != nil {
-			
+
 			return err
 		}
 
 		if !f.FileInfo().IsDir() {
 			outfile, err := os.Create(filepath + "/" + filename)
 			if err != nil {
-				
+
 				return err
 			}
 
@@ -387,6 +388,26 @@ func CopyDir(source string, dest string) (err error) {
 	return
 }
 
+// ParseTemplate uses t as a template (not a filename, but an actual template) applies the data in d to it, and writes it out to a file called o.
+func ParseTemplate(t string, d interface{}, o string) (err error) {
+
+	tmpl, err := template.New("tpl").Parse(t)
+	if err != nil {
+		return err
+	}
+
+	f, err := os.Create(o)
+	if err != nil {
+		return err
+	}
+
+	err = tmpl.Execute(f, d)
+	if err != nil {
+		return err
+	}
+	return
+}
+
 // A struct for returning custom error messages
 type SawsijError struct {
 	What string
@@ -395,4 +416,10 @@ type SawsijError struct {
 // Returns the error message defined in What as a string
 func (e *SawsijError) Error() string {
 	return e.What
+}
+
+func ReadFileIntoString(filename string) (s string, err error) {
+	cb, err := ioutil.ReadFile(filename)
+	s = string(cb)
+	return
 }
