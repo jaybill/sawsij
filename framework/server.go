@@ -431,23 +431,30 @@ func Configure(as *AppSetup, basePath string) (err error) {
 								t.Insert(dbv)
 
 							}
-							viewfile := fmt.Sprintf("%v/sql/objects/%v_%v_views.sql", appScope.BasePath, driver, schema.Name)
-							log.Printf("Running script %v", viewfile)
-							err = model.RunScript(db, viewfile)
-							if err != nil {
-								log.Fatal(err)
-							}
 
 						} else {
 							log.Fatal("Schema/App version mismatch. Please run migrate to update the database.")
 						}
 
 					}
+
+				}
+
+				if migrateAndExit {
+					viewfile := fmt.Sprintf("%v/sql/objects/%v_%v_views.sql", appScope.BasePath, driver, schema.Name)
+					log.Printf("Running script %v", viewfile)
+					err = model.RunScript(db, viewfile)
+					if err != nil {
+						log.Fatal(err)
+					}
+
 				}
 
 			}
+
 			appScope.Db = &model.DbSetup{Db: db, DefaultSchema: defaultSchema, Schemas: allSchemas}
 			if migrateAndExit {
+
 				log.Print("All schemas updated. Exiting.")
 				os.Exit(0)
 			}
