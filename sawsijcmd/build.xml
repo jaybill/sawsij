@@ -1,0 +1,49 @@
+<project name="sawsijcmd" default="message" basedir=".">	
+<!--
+
+Copyright 2012 J. William McCarthy. All rights reserved.
+Use of this source code is governed by a BSD-style
+license that can be found in the LICENSE file.
+
+-->
+    <description>build/deploy for sawsijcmd</description>   
+    <!-- TARGET: message -->
+	<!-- displays a help message with available targets -->
+	<target name="message">
+		<echo message="Available targets are 'props' and 'seed'."/>
+	</target>	
+
+    <propertyfile file="build.properties" comment="Build properties for ${ant.project.name}">  
+		<entry key="build" type="string" default=""/>
+		<entry key="dist" type="string" default=""/>	
+		<entry key="sawsijsrc" type="string" default=""/>
+	</propertyfile>  
+	<loadproperties srcfile="build.properties" />
+	<property name="cmdsrc" value="${sawsijsrc}/src/bitbucket.org/jaybill/sawsij/sawsijcmd"/>
+
+	<target name="seed">
+		<delete dir="${build}"/> 
+		<mkdir dir="${build}"/>
+
+		<property name="seeddir" value="${sawsijsrc}/src/bitbucket.org/jaybill/sawsij/sawsijcmd/seed"/>
+
+		<tstamp/>
+		<property name="tag" value="${DSTAMP}-${TSTAMP}"/>
+
+		<copy todir="${build}"><fileset dir="${seeddir}"/></copy>
+
+		<copy todir="${build}">
+		 <fileset dir="${cmdsrc}" includes="VERSION"/>
+		  <filterset>
+		  		<filter token="VERSION" value="${tag}"/>
+		  </filterset>
+		</copy>
+
+		<zip destfile="${dist}/seed.zip" basedir="${build}"/>
+		<delete dir="${build}"/> 
+	</target>
+		
+	<target name="props">
+		<echoproperties/>
+	</target>
+</project>
