@@ -37,9 +37,23 @@ func Compare(a, b interface{}) (equal bool) {
 	return
 }
 
+// Returns the first "length" characters of "input". Used by the template parser as "truncate". Not super accurate
+// when dealing with non-latin character sets. "cont" will be added to the end of a string if it has been shortened.
+// The length of "cont" will be subtracted from the original string.
+func Truncate(input string, length int, cont string) (output string) {
+	if len(input) > length {
+		output = input[0:length-len(cont)] + cont
+	} else {
+		output = input
+	}
+
+	return
+}
+
 // GetFuncMap returns a template.FuncMap which will be passed to the template parser. 
 func GetFuncMap() (fnm template.FuncMap) {
 	fnm = make(template.FuncMap)
+	fnm["truncate"] = Truncate
 	fnm["dateformat"] = DateFormat
 	fnm["markdown"] = MarkDown
 	fnm["eq"] = Compare
