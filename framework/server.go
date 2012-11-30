@@ -129,9 +129,11 @@ func parseTemplates() {
 // the contents of View is ignored. 
 // Note: If you only supply one entry in your View map, the *contents* of the map will be passed to the view rather than the whole map. This is done 
 // to simplify templates and JSON responses with only one entry.
+// Headers is an array of standard http headers that will be set on the response.
 type HandlerResponse struct {
 	View     map[string](interface{})
 	Redirect string
+	Header   http.Header
 }
 
 // Init sets up an empty map for the handler response. Generally the first thing you'll call in your handler function.
@@ -255,10 +257,19 @@ func Route(rcfg RouteConfig) {
 				log.Print(err)
 				http.Error(w, "An error occured. See log for details.", http.StatusInternalServerError)
 			} else {
+
+				for key, values := range handlerResults.Header {
+
+					for _, value := range values {
+						w.Header().Add(key, value)
+					}
+
+				}
+
 				switch returnType {
 				case RT_XML:
 					//TODO Return actual XML here (issue #6)
-					w.Header().Set("Content-Type", "text/xml")
+					w.Header().Add("Content-Type", "text/xml")
 					fmt.Fprintf(w, "%s", xml.Header)
 					log.Print("returning xml")
 					type Response struct {
@@ -272,7 +283,7 @@ func Route(rcfg RouteConfig) {
 						fmt.Fprintf(w, "%s", b)
 					}
 				case RT_JSON:
-					w.Header().Set("Content-Type", "application/json")
+					w.Header().Add("Content-Type", "application/json")
 					log.Print("returning json")
 
 					var iToRender interface{}
