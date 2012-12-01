@@ -24,6 +24,7 @@ import (
 	"fmt"
 	_ "github.com/bmizerany/pq"
 	"github.com/kylelemons/go-gypsy/yaml"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -130,10 +131,13 @@ func parseTemplates() {
 // Note: If you only supply one entry in your View map, the *contents* of the map will be passed to the view rather than the whole map. This is done 
 // to simplify templates and JSON responses with only one entry.
 // Headers is an array of standard http headers that will be set on the response.
+// Modtime is the last modified time, which is only used when the RouteConfig's ReturnType is RT_RAW
 type HandlerResponse struct {
 	View     map[string](interface{})
 	Redirect string
 	Header   http.Header
+	Content  io.ReadSeeker
+	Modtime  time.Time
 }
 
 // Init sets up an empty map for the handler response. Generally the first thing you'll call in your handler function.
@@ -149,7 +153,8 @@ type RouteConfig struct {
 	Handler func(*http.Request, *AppScope, *RequestScope) (HandlerResponse, error)
 	// An array of role (ints) that are allowed to access this route.
 	Roles []int
-	// Setting this to framework.RT_JSON or framework.RT_HTML will force the return type and ignore any URL hints.
+	// Setting this to framework.RT_JSON or framework.RT_HTML will force the return type and ignore any URL hints. Setting this to framework.RT_RAW 
+	// will use http.ServeContent to pass whatever is returned in HandlerResponse.Content (useful for sending binary data like images)
 	ReturnType int
 	// How parameters will be specified on the URL. Will default to PARAMS_MAP, a key value map. Can be set to PARAMS_ARRAY to return
 	// an ordered array of values
@@ -309,6 +314,10 @@ func Route(rcfg RouteConfig) {
 					} else {
 						fmt.Fprintf(w, "%s", b)
 					}
+
+				case RT_RAW:
+
+					http.ServeContent(w, r, "", handlerResults.Modtime, handlerResults.Content)
 				default:
 					var templateFilename string
 					if rcfg.TemplateFilename == "" {

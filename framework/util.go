@@ -25,9 +25,10 @@ import (
 
 // Return type constants, used in the switch for determining what format the response will be returned in.
 const (
-	RT_HTML = 5 // return HTML
-	RT_XML  = 7 // return XML
-	RT_JSON = 9 // return JSON
+	RT_HTML = 5  // return HTML
+	RT_XML  = 7  // return XML
+	RT_JSON = 9  // return JSON
+	RT_RAW  = 11 // return raw data
 )
 
 // Constants for how to return URL parameters
@@ -197,6 +198,7 @@ func CopyUrlToFile(url string, filepath string) (err error) {
 	if err != nil {
 		return
 	}
+	defer res.Body.Close()
 	data, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return
