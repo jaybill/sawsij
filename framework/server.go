@@ -16,7 +16,6 @@ package framework
 import (
 	"bitbucket.org/jaybill/sawsij/framework/model"
 	"code.google.com/p/gorilla/sessions"
-
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -28,6 +27,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"runtime"
 	"strings"
 	"text/template"
 	"time"
@@ -499,7 +499,8 @@ func Configure(as *AppSetup, basePath string) (err error) {
 // Run will start a web server on the port specified in the config file, using the configuration in the config file and the routes specified by any Route() calls
 // that have been previously made. This is generally the last line of your application's "main" method.
 func Run() {
-
+	log.Printf("Number of processors: %d", runtime.NumCPU())
+	runtime.GOMAXPROCS(runtime.NumCPU())
 	port, err := appScope.Config.Get("server.port")
 	if err != nil {
 		log.Fatal(err)
