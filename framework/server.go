@@ -14,14 +14,12 @@ Check out http://sawsij.com for more information and documentation.
 package framework
 
 import (
-	"bitbucket.org/jaybill/sawsij/framework/model"
 	"code.google.com/p/gorilla/sessions"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	_ "github.com/bmizerany/pq"
 	"github.com/kylelemons/go-gypsy/yaml"
 	"io"
 	"log"
@@ -42,7 +40,7 @@ const (
 type AppScope struct {
 	// A reference to the config file
 	Config   *yaml.File
-	Db       *model.DbSetup
+	Db       *sql.DB
 	BasePath string
 	Setup    *AppSetup
 	// Can be used to store arbitrary data in the application scope.
@@ -73,15 +71,17 @@ type User interface {
 
 // AppSetup is used by Configure() to set up callback functions that your application implements to extend the framework
 // functionality. It serves as the basis of the "plugin" system. The only exception is GetUser(), which your app must implement
-// for the framework to function. The GetUser function supplies a type conforming to the User specification. It's used for auth and 
-// session mangement.
-// Roles is a map of ints with string keys that allow you to make role identifiers available by name from within templates. This isn't
-// checked in any way and is solely for ease of use.
-// TemplateFuncs is a map of functions that can be called from your templates. If you make the keys the same as any of the built in functions,
-// you'll effectively override it.
+// for the framework to function. 
 type AppSetup struct {
-	GetUser       func(username string, a *AppScope) User
-	Roles         *map[string]int
+	// The GetUser function supplies a type conforming to the User specification. It's used for auth and session mangement.
+	GetUser func(username string, a *AppScope) User
+	// The GetDb function must take a driver string and a connect string (will be passed in from the config file) and return a to a sql.DB type
+	GetDb func(driver string, connect string) (*sql.DB, error)
+	// The PostConfig function is supplied so you can do anything that has to be done before the app actually runs.
+	PostConfig func(a *AppScope) error
+	// Roles is a map of ints with string keys that allow you to make role identifiers available by name from within templates. This isn't checked in any way and is solely for ease of use.
+	Roles *map[string]int
+	// TemplateFuncs is a map of functions that can be called from your templates. If you make the keys the same as any of the built in functions, you'll effectively override it.
 	TemplateFuncs template.FuncMap
 }
 
@@ -365,7 +365,7 @@ func staticHandler(w http.ResponseWriter, r *http.Request) {
 // It will also set up a static handler for any files in [app_root_dir]/static, which can be used to serve up images, CSS and JavaScript. 
 // Configure is the first thing your application will call in its "main" method.
 func Configure(as *AppSetup, basePath string) (err error) {
-	migrateAndExit := false
+
 	a := AppScope{Setup: as}
 	appScope = &a
 	log.Printf("Basepath is currently %q", basePath)
@@ -378,15 +378,6 @@ func Configure(as *AppSetup, basePath string) (err error) {
 		appScope.BasePath = string(os.Args[1])
 	} else {
 		appScope.BasePath = basePath
-	}
-
-	if len(os.Args) == 3 {
-		switch os.Args[2] {
-		case "migrate":
-			migrateAndExit = true
-		default:
-			log.Printf("Command line option %q not valid.", os.Args[2])
-		}
 	}
 
 	configFilename := appScope.BasePath + "/etc/config.yaml"
@@ -402,83 +393,20 @@ func Configure(as *AppSetup, basePath string) (err error) {
 	driver, err := c.Get("database.driver")
 
 	if err != nil {
-		log.Fatal(err)
-	}
+		log.Print("No database driver supplied in config file. Connection not attempted.")
 
-	if driver != "none" {
-
+	} else {
 		connect, err := c.Get("database.connect")
+
+		if err != nil {
+			log.Fatal(err)
+		}
+		db, err := as.GetDb(driver, connect)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		db, err := sql.Open(driver, connect)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		dBconfigFilename := appScope.BasePath + "/etc/dbversions.yaml"
-		defaultSchema, allSchemas, err := model.ParseDbVersionsFile(dBconfigFilename)
-
-		if err == nil {
-
-			for _, schema := range allSchemas {
-				// TODO Remove hardcoded sql string, replace with driver based lookup (issue #11)
-				query := fmt.Sprintf("SELECT version_id from %v.sawsij_db_version ORDER BY ran_on DESC LIMIT 1;", schema.Name)
-				row := db.QueryRow(query)
-				var dbversion int64 = 0
-
-				err = row.Scan(&dbversion)
-				if err != nil {
-					log.Fatal(err)
-				} else {
-					log.Printf("Schema: %v App: %v Db: %v", schema.Name, schema.Version, dbversion)
-					if schema.Version != dbversion {
-
-						if migrateAndExit {
-							dbs := &model.DbSetup{Db: db}
-							t := &model.Table{Db: dbs, Schema: schema.Name}
-							log.Printf("Running database migration on %q", schema.Name)
-							for i := dbversion + 1; i <= schema.Version; i++ {
-								scriptfile := fmt.Sprintf("%v/sql/changes/%v_%v_%04d.sql", appScope.BasePath, driver, schema.Name, i)
-								log.Printf("Running script %v", scriptfile)
-
-								err = model.RunScript(db, scriptfile)
-								if err != nil {
-									log.Fatal(err)
-								}
-								dbv := &model.SawsijDbVersion{VersionId: i, RanOn: time.Now()}
-								t.Insert(dbv)
-
-							}
-
-						} else {
-							log.Fatal("Schema/App version mismatch. Please run migrate to update the database.")
-						}
-
-					}
-
-				}
-
-				if migrateAndExit {
-					viewfile := fmt.Sprintf("%v/sql/objects/%v_%v_views.sql", appScope.BasePath, driver, schema.Name)
-					log.Printf("Running script %v", viewfile)
-					err = model.RunScript(db, viewfile)
-					if err != nil {
-						log.Fatal(err)
-					}
-
-				}
-
-			}
-
-			appScope.Db = &model.DbSetup{Db: db, DefaultSchema: defaultSchema, Schemas: allSchemas}
-			if migrateAndExit {
-
-				log.Print("All schemas updated. Exiting.")
-				os.Exit(0)
-			}
-		}
+		appScope.Db = db
 	}
 
 	key, err := c.Get("encryption.key")
@@ -493,12 +421,18 @@ func Configure(as *AppSetup, basePath string) (err error) {
 
 	parseTemplates()
 
+	err = as.PostConfig(appScope)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	return
 }
 
 // Run will start a web server on the port specified in the config file, using the configuration in the config file and the routes specified by any Route() calls
 // that have been previously made. This is generally the last line of your application's "main" method.
 func Run() {
+
 	log.Printf("Number of processors: %d", runtime.NumCPU())
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	port, err := appScope.Config.Get("server.port")
