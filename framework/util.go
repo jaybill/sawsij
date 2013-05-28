@@ -49,9 +49,9 @@ func GetIntId(strId string) (intId int64) {
 
 // GetUrlParams removes the string specified in "pattern" and returns key value pairs as a map of strings.
 func GetUrlParamsMap(pattern string, urlPath string) (urlParams map[string]string) {
-
-	rp := strings.NewReplacer(pattern, "")
-	restOfUrl := rp.Replace(urlPath)
+	log.Printf("Got URL path %v and Url Pattern %v", urlPath, pattern)
+	
+	restOfUrl := strings.Replace(urlPath, pattern, "", -1)
 
 	if strings.HasPrefix(restOfUrl, "/") {
 		restOfUrl = restOfUrl[1:len(restOfUrl)]
@@ -78,8 +78,8 @@ func GetUrlParamsMap(pattern string, urlPath string) (urlParams map[string]strin
 
 // GetUrlParams removes the string specified in "pattern" and returns key value pairs as a map of strings.
 func GetUrlParamsArray(pattern string, urlPath string) (urlParams []string) {
-	rp := strings.NewReplacer(pattern, "")
-	restOfUrl := rp.Replace(urlPath)
+	
+	restOfUrl := strings.Replace(urlPath, pattern, "", -1)
 
 	if strings.HasPrefix(restOfUrl, "/") {
 		restOfUrl = restOfUrl[1:len(restOfUrl)]
@@ -282,7 +282,7 @@ func MakeRandomId() (ident string) {
 	return
 }
 
-// Creates a prompt and waits for input from the user. If a default answer is supplied, it will be returned 
+// Creates a prompt and waits for input from the user. If a default answer is supplied, it will be returned
 // if the user presses enter without entering a value.
 func GetUserInput(prompt string, defaultAnswer string) (answer string, err error) {
 	var fmtPrompt string = ""
@@ -336,8 +336,8 @@ func CopyFile(source string, dest string) (err error) {
 	return
 }
 
-// Recursively copies a directory tree, attempting to preserve permissions. Source directory must exist, 
-// destination directory must *not* exist. 
+// Recursively copies a directory tree, attempting to preserve permissions. Source directory must exist,
+// destination directory must *not* exist.
 func CopyDir(source string, dest string) (err error) {
 
 	// get properties of source dir
@@ -370,14 +370,14 @@ func CopyDir(source string, dest string) (err error) {
 
 		sfp := source + "/" + entry.Name()
 		dfp := dest + "/" + entry.Name()
-		// TODO Check for symlinks (issue #3)		
+		// TODO Check for symlinks (issue #3)
 		if entry.IsDir() {
 			err = CopyDir(sfp, dfp)
 			if err != nil {
 				fmt.Println(err)
 			}
 		} else {
-			// perform copy			
+			// perform copy
 			err = CopyFile(sfp, dfp)
 			if err != nil {
 				fmt.Println(err)
