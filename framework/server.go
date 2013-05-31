@@ -16,7 +16,6 @@ package framework
 import (
 	"bitbucket.org/jaybill/sawsij/framework/model"
 	"code.google.com/p/gorilla/sessions"
-
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -24,9 +23,11 @@ import (
 	"fmt"
 	_ "github.com/bmizerany/pq"
 	"github.com/kylelemons/go-gypsy/yaml"
+	"io"
 	"log"
 	"net/http"
 	"os"
+	"runtime"
 	"strings"
 	"text/template"
 	"time"
@@ -129,9 +130,14 @@ func parseTemplates() {
 // the contents of View is ignored. 
 // Note: If you only supply one entry in your View map, the *contents* of the map will be passed to the view rather than the whole map. This is done 
 // to simplify templates and JSON responses with only one entry.
+// Headers is an array of standard http headers that will be set on the response.
+// Modtime is the last modified time, which is only used when the RouteConfig's ReturnType is RT_RAW
 type HandlerResponse struct {
 	View     map[string](interface{})
 	Redirect string
+	Header   http.Header
+	Content  io.ReadSeeker
+	Modtime  time.Time
 }
 
 // Init sets up an empty map for the handler response. Generally the first thing you'll call in your handler function.
@@ -147,7 +153,8 @@ type RouteConfig struct {
 	Handler func(*http.Request, *AppScope, *RequestScope) (HandlerResponse, error)
 	// An array of role (ints) that are allowed to access this route.
 	Roles []int
-	// Setting this to framework.RT_JSON or framework.RT_HTML will force the return type and ignore any URL hints.
+	// Setting this to framework.RT_JSON or framework.RT_HTML will force the return type and ignore any URL hints. Setting this to framework.RT_RAW 
+	// will use http.ServeContent to pass whatever is returned in HandlerResponse.Content (useful for sending binary data like images)
 	ReturnType int
 	// How parameters will be specified on the URL. Will default to PARAMS_MAP, a key value map. Can be set to PARAMS_ARRAY to return
 	// an ordered array of values
@@ -255,10 +262,19 @@ func Route(rcfg RouteConfig) {
 				log.Print(err)
 				http.Error(w, "An error occured. See log for details.", http.StatusInternalServerError)
 			} else {
+
+				for key, values := range handlerResults.Header {
+
+					for _, value := range values {
+						w.Header().Add(key, value)
+					}
+
+				}
+
 				switch returnType {
 				case RT_XML:
 					//TODO Return actual XML here (issue #6)
-					w.Header().Set("Content-Type", "text/xml")
+					w.Header().Add("Content-Type", "text/xml")
 					fmt.Fprintf(w, "%s", xml.Header)
 					log.Print("returning xml")
 					type Response struct {
@@ -272,7 +288,7 @@ func Route(rcfg RouteConfig) {
 						fmt.Fprintf(w, "%s", b)
 					}
 				case RT_JSON:
-					w.Header().Set("Content-Type", "application/json")
+					w.Header().Add("Content-Type", "application/json")
 					log.Print("returning json")
 
 					var iToRender interface{}
@@ -298,6 +314,10 @@ func Route(rcfg RouteConfig) {
 					} else {
 						fmt.Fprintf(w, "%s", b)
 					}
+
+				case RT_RAW:
+
+					http.ServeContent(w, r, "", handlerResults.Modtime, handlerResults.Content)
 				default:
 					var templateFilename string
 					if rcfg.TemplateFilename == "" {
@@ -431,23 +451,30 @@ func Configure(as *AppSetup, basePath string) (err error) {
 								t.Insert(dbv)
 
 							}
-							viewfile := fmt.Sprintf("%v/sql/objects/%v_%v_views.sql", appScope.BasePath, driver, schema.Name)
-							log.Printf("Running script %v", viewfile)
-							err = model.RunScript(db, viewfile)
-							if err != nil {
-								log.Fatal(err)
-							}
 
 						} else {
 							log.Fatal("Schema/App version mismatch. Please run migrate to update the database.")
 						}
 
 					}
+
+				}
+
+				if migrateAndExit {
+					viewfile := fmt.Sprintf("%v/sql/objects/%v_%v_views.sql", appScope.BasePath, driver, schema.Name)
+					log.Printf("Running script %v", viewfile)
+					err = model.RunScript(db, viewfile)
+					if err != nil {
+						log.Fatal(err)
+					}
+
 				}
 
 			}
+
 			appScope.Db = &model.DbSetup{Db: db, DefaultSchema: defaultSchema, Schemas: allSchemas}
 			if migrateAndExit {
+
 				log.Print("All schemas updated. Exiting.")
 				os.Exit(0)
 			}
@@ -472,7 +499,8 @@ func Configure(as *AppSetup, basePath string) (err error) {
 // Run will start a web server on the port specified in the config file, using the configuration in the config file and the routes specified by any Route() calls
 // that have been previously made. This is generally the last line of your application's "main" method.
 func Run() {
-
+	log.Printf("Number of processors: %d", runtime.NumCPU())
+	runtime.GOMAXPROCS(runtime.NumCPU())
 	port, err := appScope.Config.Get("server.port")
 	if err != nil {
 		log.Fatal(err)
