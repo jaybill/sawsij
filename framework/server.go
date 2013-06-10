@@ -5,7 +5,7 @@
 /* Package sawsij provides a small, opinionated web framework.
 
 Sawsij is a framework for building web applications. Generally, new sawsij applications are created with the sawsijcmd tool. It will talk you
-through an intitial application configuration and generate all the required files and code. You can learn more about sawsijcmd over here: 
+through an intitial application configuration and generate all the required files and code. You can learn more about sawsijcmd over here:
 https://bitbucket.org/jaybill/sawsij/wiki/Installation
 
 Check out http://sawsij.com for more information and documentation.
@@ -37,7 +37,7 @@ const (
 	R_GUEST = 0
 )
 
-// An AppScope is passed along to a request handler and stores application configuration, the handle to the database and any derived information, 
+// An AppScope is passed along to a request handler and stores application configuration, the handle to the database and any derived information,
 // like the base path.
 type AppScope struct {
 	// A reference to the config file
@@ -59,21 +59,21 @@ type RequestScope struct {
 	UrlParamMap map[string]string
 }
 
-// The User interface describes the methods that the framework needs to interact with a user for the purposes of auth and session management. 
+// The User interface describes the methods that the framework needs to interact with a user for the purposes of auth and session management.
 // Sawsij does not describe its own user struct, that's up to the application.
 type User interface {
 	// How the framework determines if the user has supplied the correct password
 	TestPassword(password string, a *AppScope) bool
-	// How the framework determines what role the user has. Currently only has one role. 
+	// How the framework determines what role the user has. Currently only has one role.
 	GetRole() int64
-	// If you're storing a password hash in your user object, implement ClearPasswordHash() so that it blanks that. 
+	// If you're storing a password hash in your user object, implement ClearPasswordHash() so that it blanks that.
 	// Otherwise the hash will get stored in the session cookie, which is no good.
 	ClearPasswordHash()
 }
 
 // AppSetup is used by Configure() to set up callback functions that your application implements to extend the framework
 // functionality. It serves as the basis of the "plugin" system. The only exception is GetUser(), which your app must implement
-// for the framework to function. The GetUser function supplies a type conforming to the User specification. It's used for auth and 
+// for the framework to function. The GetUser function supplies a type conforming to the User specification. It's used for auth and
 // session mangement.
 // Roles is a map of ints with string keys that allow you to make role identifiers available by name from within templates. This isn't
 // checked in any way and is solely for ease of use.
@@ -127,8 +127,8 @@ func parseTemplates() {
 }
 
 // HandlerResponse is a struct that your handler functions return. It contains all the data needed to generate the response. If Redirect is set,
-// the contents of View is ignored. 
-// Note: If you only supply one entry in your View map, the *contents* of the map will be passed to the view rather than the whole map. This is done 
+// the contents of View is ignored.
+// Note: If you only supply one entry in your View map, the *contents* of the map will be passed to the view rather than the whole map. This is done
 // to simplify templates and JSON responses with only one entry.
 // Headers is an array of standard http headers that will be set on the response.
 // Modtime is the last modified time, which is only used when the RouteConfig's ReturnType is RT_RAW
@@ -153,7 +153,7 @@ type RouteConfig struct {
 	Handler func(*http.Request, *AppScope, *RequestScope) (HandlerResponse, error)
 	// An array of role (ints) that are allowed to access this route.
 	Roles []int
-	// Setting this to framework.RT_JSON or framework.RT_HTML will force the return type and ignore any URL hints. Setting this to framework.RT_RAW 
+	// Setting this to framework.RT_JSON or framework.RT_HTML will force the return type and ignore any URL hints. Setting this to framework.RT_RAW
 	// will use http.ServeContent to pass whatever is returned in HandlerResponse.Content (useful for sending binary data like images)
 	ReturnType int
 	// How parameters will be specified on the URL. Will default to PARAMS_MAP, a key value map. Can be set to PARAMS_ARRAY to return
@@ -229,7 +229,8 @@ func Route(rcfg RouteConfig) {
 			// This user does not have the right role
 			if su == nil {
 				// User isn't logged in, send to login page, passing along desired destination
-				dest := base64.URLEncoding.EncodeToString([]byte(rcfg.Pattern))
+				log.Printf("Request URI for redirect: %v", r.URL.RequestURI())
+				dest := base64.URLEncoding.EncodeToString([]byte(r.URL.RequestURI()))
 				handlerResults.Redirect = fmt.Sprintf("/login/dest/%v", dest)
 			} else {
 				// The user IS logged in, they're just not permitted to go here
@@ -360,9 +361,9 @@ func staticHandler(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, appScope.BasePath+r.URL.Path)
 }
 
-// Configure gets the application base path from a command line argument unless you specify it.  It then reads the config file at [app_root_dir]/etc/config.yaml. 
+// Configure gets the application base path from a command line argument unless you specify it.  It then reads the config file at [app_root_dir]/etc/config.yaml.
 // It then attempts to grab a handle to the database, which it sticks into the appScope.
-// It will also set up a static handler for any files in [app_root_dir]/static, which can be used to serve up images, CSS and JavaScript. 
+// It will also set up a static handler for any files in [app_root_dir]/static, which can be used to serve up images, CSS and JavaScript.
 // Configure is the first thing your application will call in its "main" method.
 func Configure(as *AppSetup, basePath string) (err error) {
 	migrateAndExit := false
