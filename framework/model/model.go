@@ -370,7 +370,7 @@ func (m *Table) InsertBatch(items []interface{}) (err error) {
 				log.Printf("Table name is [%v]", rowInfo.TableName)
 				idq := fmt.Sprintf("select currval(%v)", rowInfo.SequenceName)
 				log.Printf("Sequence query: %v", idq)
-				row := m.Db.Db.QueryRow(idq)
+				row := t.QueryRow(idq)
 				if err != nil {
 					log.Print(err)
 				} else {
