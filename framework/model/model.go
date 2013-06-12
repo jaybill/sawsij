@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-/* Provides a simple database access layer and table/field mapping. 
+/* Provides a simple database access layer and table/field mapping.
 
-The Model package is intended to provide something analagous to a lightweight ORM, though not quite. 
-The general pattern of usage is that you create a struct that represents a row in your table, with the 
-fields mapping to column names. You then pass a pointer to that struct into Model's various methods 
+The Model package is intended to provide something analagous to a lightweight ORM, though not quite.
+The general pattern of usage is that you create a struct that represents a row in your table, with the
+fields mapping to column names. You then pass a pointer to that struct into Model's various methods
 to perform database operations. At the moment, only postgres is supported.
 
 Struct field names are converted to database column names using sawsij.MakeDbName() and database column
@@ -23,7 +23,7 @@ schema.) You can generally do this in postgres with the following query:
 
 ALTER USER [db_username] SET search_path to '[app_schema_name]'
 
-As currently implemented, both your table and your struct must have an identity to do anything useful. 
+As currently implemented, both your table and your struct must have an identity to do anything useful.
 ("join" tables being the exception)
 */
 package model
@@ -41,8 +41,8 @@ import (
 	"unicode"
 )
 
-// Table is the primary means of interaction with the database. It represents the access to a table, not the table itself. 
-// The package figures out what table to use based on the type being passed to the various methods of Table. 
+// Table is the primary means of interaction with the database. It represents the access to a table, not the table itself.
+// The package figures out what table to use based on the type being passed to the various methods of Table.
 // Using anything but a 'flat' struct as a type will have unpredictable results.
 type Table struct {
 	Db     *DbSetup
@@ -62,7 +62,7 @@ type Schema struct {
 	Version int64
 }
 
-// DbVersion is a type representing the db_version table, which must exist in any schema you plan to use with 
+// DbVersion is a type representing the db_version table, which must exist in any schema you plan to use with
 // "[appserver] [directory] migrate"
 type SawsijDbVersion struct {
 	VersionId int64
@@ -90,7 +90,7 @@ func (m *Table) Update(data interface{}) (err error) {
 	return
 }
 
-// Insert expects a pointer to a struct that represents a row in your database. The "Id" field of the referenced struct will be populated with the 
+// Insert expects a pointer to a struct that represents a row in your database. The "Id" field of the referenced struct will be populated with the
 // identity value if the row is successfully inserted.
 func (m *Table) Insert(data interface{}) (err error) {
 
@@ -173,7 +173,7 @@ func (m *Table) Fetch(data interface{}) (err error) {
 	return
 }
 
-// The Query type is used to construct a SQL query. You should always use MakeDbName() to get column names, as this will 
+// The Query type is used to construct a SQL query. You should always use MakeDbName() to get column names, as this will
 // ensure cross-RDBMS compatibility later on.
 type Query struct {
 	// A where clause, such as fmt.Sprintf("%v = 'Third Post'", MakeDbName("Title"))
@@ -298,10 +298,10 @@ func (m *Table) getRowInfo(data interface{}, includeId bool) (rowInfo forDb) {
 	return
 }
 
-// RunScript takes a file path to a sql script, reads the file and runs it against the database/schema. 
+// RunScript takes a file path to a sql script, reads the file and runs it against the database/schema.
 // Queries will be run one at a time in a transaction. If there's any kind of error, the whole transaction
 // will be rolled back.
-// Queries must be terminated by ";" and you must use C style comments, not --. (This limitation will 
+// Queries must be terminated by ";" and you must use C style comments, not --. (This limitation will
 // probably be removed at some point.)
 func RunScript(db *sql.DB, dbscript string) (err error) {
 
@@ -342,7 +342,59 @@ func RunScript(db *sql.DB, dbscript string) (err error) {
 
 }
 
-// MakeDbName converts a struct field name into a database field name. 
+// InsertBatch expects an array of pointers to a structs that represent a rows in your database.
+// The "Id" fields of the referenced struct will be populated with the identity values if the rows
+// are successfully inserted. The inserts are done in a transaction and rolled back on the first error.
+func (m *Table) InsertBatch(items []interface{}) (err error) {
+	t, err := m.Db.Db.Begin()
+	for _, data := range items {
+
+		rowInfo := m.getRowInfo(data, false)
+		holders := make([]string, len(rowInfo.Keys))
+
+		for i := 0; i < len(rowInfo.Keys); i++ {
+			holders[i] = fmt.Sprintf("$%v", i+1)
+		}
+
+		query := fmt.Sprintf("INSERT INTO %v (%v) VALUES (%v)", rowInfo.TableName, strings.Join(rowInfo.Keys, ","), strings.Join(holders, ","))
+
+		log.Printf("Query: %q", query)
+		log.Printf("Data: %+v", data)
+		_, err = t.Exec(query, rowInfo.Vals...)
+		if err != nil {
+			log.Print(err)
+			t.Rollback()
+			return err
+		} else {
+			if rowInfo.IdIndex != -1 {
+				log.Printf("Table name is [%v]", rowInfo.TableName)
+				idq := fmt.Sprintf("select currval(%v)", rowInfo.SequenceName)
+				log.Printf("Sequence query: %v", idq)
+				row := m.Db.Db.QueryRow(idq)
+				if err != nil {
+					log.Print(err)
+				} else {
+					var id int64
+					err = row.Scan(&id)
+					if err != nil {
+						log.Print(err)
+					} else {
+						s := reflect.ValueOf(data).Elem()
+						s.Field(rowInfo.IdIndex).SetInt(id)
+						log.Printf("Id was %v", id)
+					}
+				}
+			}
+		}
+	}
+	err = t.Commit()
+	if err != nil {
+		return err
+	}
+	return
+}
+
+// MakeDbName converts a struct field name into a database field name.
 // The string will be converted to lowercase, and any capital letters after the first one will be prepended with an underscore.
 // "FirstName" will become "first_name" and so on.
 func MakeDbName(fieldName string) string {
@@ -361,7 +413,7 @@ func MakeDbName(fieldName string) string {
 	return string(copy)
 }
 
-// MakeDbName converts a database column name into a struct field name. 
+// MakeDbName converts a database column name into a struct field name.
 // The first letter will be made capital, and underscores will be removed and the following letter made capital.
 // "first_name" will become "FirstName", etc.
 func MakeFieldName(dbName string) string {
