@@ -501,11 +501,22 @@ func Configure(as *AppSetup, basePath string) (err error) {
 // that have been previously made. This is generally the last line of your application's "main" method.
 func Run() {
 	log.Printf("Number of processors: %d", runtime.NumCPU())
+
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	port, err := appScope.Config.Get("server.port")
+	listen := ""
+	listen, err := appScope.Config.Get("server.listen")
 	if err != nil {
-		log.Fatal(err)
+		port, err := appScope.Config.Get("server.port")
+		if err != nil {
+			log.Print(err)
+			log.Fatal("Config file must specify 'listen' or 'port'.")
+		} else {
+			listen = fmt.Sprintf(":%v", port)
+		}
+	} else {
+
 	}
-	log.Print("Listening on port [" + port + "]")
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", port), nil))
+
+	log.Printf("Listening on %v", listen)
+	log.Fatal(http.ListenAndServe(listen, nil))
 }
