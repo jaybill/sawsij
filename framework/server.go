@@ -79,8 +79,10 @@ type User interface {
 // checked in any way and is solely for ease of use.
 // TemplateFuncs is a map of functions that can be called from your templates. If you make the keys the same as any of the built in functions,
 // you'll effectively override it.
+
 type AppSetup struct {
-	GetUser       func(username string, a *AppScope) User
+	GetUser func(username string, a *AppScope) User
+
 	Roles         *map[string]int
 	TemplateFuncs template.FuncMap
 }
@@ -88,6 +90,17 @@ type AppSetup struct {
 var store *sessions.CookieStore
 var appScope *AppScope
 var parsedTemplate *template.Template
+
+// SetCustom is used to add custom data that will be placed in the AppScope. This can later be retrieved in handler functions.
+// You supply it with a function that returns a map, and it will set the AppScope that gets passed to handlers to that.
+// You should always call SetCustom *after* you call Configure, that way the AppScope your function recieves will
+// have all the configuration stuff, like database connections and the config file.
+func SetCustom(f func(a *AppScope) *map[string]interface{}) {
+	log.Print("Calling custom function")
+	appScope.Custom = f(appScope)
+	log.Print("Custom is now %+v", *appScope.Custom)
+	return
+}
 
 func parseTemplates() {
 	viewPath := appScope.BasePath + "/templates"
@@ -500,6 +513,7 @@ func Configure(as *AppSetup, basePath string) (err error) {
 // Run will start a web server on the port specified in the config file, using the configuration in the config file and the routes specified by any Route() calls
 // that have been previously made. This is generally the last line of your application's "main" method.
 func Run() {
+
 	log.Printf("Number of processors: %d", runtime.NumCPU())
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
