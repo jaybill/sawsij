@@ -378,10 +378,10 @@ func staticHandler(w http.ResponseWriter, r *http.Request) {
 // It then attempts to grab a handle to the database, which it sticks into the appScope.
 // It will also set up a static handler for any files in [app_root_dir]/static, which can be used to serve up images, CSS and JavaScript.
 // Configure is the first thing your application will call in its "main" method.
-func Configure(as *AppSetup, basePath string) (err error) {
+func Configure(as *AppSetup, basePath string) (a *AppScope, err error) {
 	migrateAndExit := false
-	a := AppScope{Setup: as}
-	appScope = &a
+	a = &AppScope{Setup: as}
+	appScope = a
 	log.Printf("Basepath is currently %q", basePath)
 	if basePath == "" {
 
