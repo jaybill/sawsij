@@ -50,6 +50,9 @@ type AppScope struct {
 }
 
 // A RequestScope is sent to handler functions and contains session and derived URL information.
+// A note about sessions: If you use the AddFlash() function, the value will be placed in the .global map as "flash".
+// The value in "flash" will *only* be present on the next request made against that session and will be gone after that.
+// This is useful for "success" messages that need to show up on another page after you've redirected there.
 type RequestScope struct {
 	// The user session handle
 	Session *sessions.Session
@@ -263,6 +266,12 @@ func Route(rcfg RouteConfig) {
 			}
 
 			global["user"] = session.Values["user"]
+
+			if flashes := session.Flashes(); len(flashes) > 0 {
+				log.Printf("Setting error flashes to %+v", flashes[0])
+				global["flash"] = flashes[0]
+			}
+
 			// Call the supplied handler function and get the results back.
 			handlerResults, err = rcfg.Handler(r, appScope, &reqScope)
 			reqScope.Session.Save(r, w)
