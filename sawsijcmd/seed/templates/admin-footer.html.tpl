@@ -1,25 +1,12 @@
-    <hr />
-    <div class="footer">
-        <p class="pull-right">&copy; {{.name}}</p>
-    </div>
-</div> <!-- /container -->
-
-    <!-- Le javascript
-    ================================================== -->
-    <!-- Placed at the end of the document so the pages load faster -->
-    <script src="/static/js/jquery.js"></script>
-    <script src="/static/js/bootstrap-transition.js"></script>
-    <script src="/static/js/bootstrap-alert.js"></script>
-    <script src="/static/js/bootstrap-modal.js"></script>
-    <script src="/static/js/bootstrap-dropdown.js"></script>
-    <script src="/static/js/bootstrap-scrollspy.js"></script>
-    <script src="/static/js/bootstrap-tab.js"></script>
-    <script src="/static/js/bootstrap-tooltip.js"></script>
-    <script src="/static/js/bootstrap-popover.js"></script>
-    <script src="/static/js/bootstrap-button.js"></script>
-    <script src="/static/js/bootstrap-collapse.js"></script>
-    <script src="/static/js/bootstrap-carousel.js"></script>
-    <script src="/static/js/bootstrap-typeahead.js"></script>
-
+  </div><!-- /.container -->
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>  
+  <script src="//netdna.bootstrapcdn.com/bootstrap/3.0.0-wip/js/bootstrap.min.js"></script>
+  <script src="/static/js/bootstrap-datepicker.min.js"></script>  
+  <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+  <script src="/static/js/sawsij.js"></script>  
+  <! -- Per page scripts -->
+  <% if eq .global.url "/admin" %>
+  <script src="/static/js/admin-dashboard.js"></script>  
+  <% end %>
   </body>
 </html>

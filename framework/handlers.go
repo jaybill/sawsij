@@ -48,16 +48,14 @@ func LoginHandler(r *http.Request, a *AppScope, rs *RequestScope) (h HandlerResp
 		}
 		log.Println("Checking username/password")
 		user := a.Setup.GetUser(username, a)
-
-		if user == nil {
-			h.View["failed"] = true
-		} else {
-			if !user.TestPassword(password, a) {
-				h.View["failed"] = true
+		var loggedIn bool = false
+		if user != nil {
+			if user.TestPassword(password, a) {
+				loggedIn = true
 			}
 		}
 
-		if h.View["failed"] == nil {
+		if loggedIn {
 			user.ClearPasswordHash()
 			rs.Session.Values["user"] = user
 			log.Printf("Logging in userId: %+v", rs.Session.Values["user"])
@@ -69,6 +67,9 @@ func LoginHandler(r *http.Request, a *AppScope, rs *RequestScope) (h HandlerResp
 
 		} else {
 			h.View["username"] = username
+			h.View["failed"] = true
+			errors := []string{"Login failed."}
+			h.View["errors"] = errors
 		}
 
 	}

@@ -397,7 +397,7 @@ fi
 			itWorked = false
 		}
 
-		// set environment variables so we can build the application. 
+		// set environment variables so we can build the application.
 		err = os.Setenv(envname, path)
 		if err != nil {
 			fmt.Println(err)
@@ -543,14 +543,17 @@ func factory() {
 		bomb(err)
 	}
 
-	query := "select column_name,data_type from information_schema.columns where table_name = $1 and table_schema = $2 order by ordinal_position desc;"
+	query := "select column_name,data_type,is_nullable from information_schema.columns where table_name = $1 and table_schema = $2 order by ordinal_position;"
 
 	rows, err := db.Query(query, tName, sName)
 	tV := make(map[string]interface{})
 
 	type fieldDef struct {
-		FName string
-		FType string
+		FName       string
+		FType       string
+		CanBeNull   bool
+		IsPk        bool
+		DisplayType string
 	}
 	var sA []fieldDef
 	if err == nil {
@@ -558,32 +561,57 @@ func factory() {
 		for rows.Next() {
 			var colName string
 			var dType string
+			var canBeNull string
 
-			err = rows.Scan(&colName, &dType)
+			err = rows.Scan(&colName, &dType, &canBeNull)
 			if err != nil {
 				bomb(err)
 			}
 
 			var sType string
-
+			var sDType string
 			switch dType {
 
 			case "bigint":
 				sType = "int64"
+				sDType = "number"
 			case "integer":
 				sType = "int64"
+				sDType = "number"
+				tV["importStrconv"] = true
 			case "timestamp without time zone":
+				sDType = "timestamp"
+				sType = "time.Time"
+				tV["importTime"] = true
+			case "timestamp with time zone":
+				sDType = "timestamp"
+				sType = "time.Time"
+				tV["importTime"] = true
+			case "date":
+				sDType = "date"
 				sType = "time.Time"
 				tV["importTime"] = true
 			case "text":
+				sDType = "text"
 				sType = "string"
 			case "character varying":
+				sDType = "text"
 				sType = "string"
 			default:
 				sType = "string"
 			}
 
-			sA = append(sA, fieldDef{model.MakeFieldName(colName), sType})
+			var sCbn bool = false
+			if canBeNull == "YES" {
+				sCbn = true
+			}
+
+			var isPk bool = false
+			if model.MakeFieldName(colName) == "Id" {
+				isPk = true
+			}
+
+			sA = append(sA, fieldDef{model.MakeFieldName(colName), sType, sCbn, isPk, sDType})
 
 		}
 
@@ -605,7 +633,16 @@ func factory() {
 		tpls = append(tpls, sTplDef{"admin-edit.html.tpl", fmt.Sprintf("%v/templates/admin-%v-edit.html", basePath, fName)})
 
 		tpls = append(tpls, sTplDef{"admin.html.tpl", fmt.Sprintf("%v/templates/admin-%v.html", basePath, fName)})
-		tpls = append(tpls, sTplDef{"handler.go.tpl", fmt.Sprintf("%v/src/%v/%v.go", basePath, pName, fName)})
+		hsf := fmt.Sprintf("%v/src/%v/%v.go", basePath, pName, fName)
+		tpls = append(tpls, sTplDef{"handler.go.tpl", hsf})
+
+		fcmd := exec.Command("gofmt", "-w", hsf)
+		err := fcmd.Start()
+		if err != nil {
+			bomb(err)
+		} else {
+			fmt.Printf("Formatted %v\n", hsf)
+		}
 
 		for _, tpl := range tpls {
 			t, err := framework.ReadFileIntoString(basePath + "/templates/crud/" + tpl.Source)

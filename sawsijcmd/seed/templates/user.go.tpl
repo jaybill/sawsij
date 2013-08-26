@@ -1,13 +1,12 @@
 // Copyright <year> <name>. All rights reserved.
-// Use of this source code is governed by license 
+// Use of this source code is governed by license
 // that can be found in the LICENSE file.
 
-package {{ .name }}
+package hodor
 
 import (
 	"bitbucket.org/jaybill/sawsij/framework"
 	"bitbucket.org/jaybill/sawsij/framework/model"
-	"code.google.com/p/gorilla/schema"
 	"fmt"
 	"log"
 	"net/http"
@@ -16,20 +15,18 @@ import (
 )
 
 // User represents an application user in the database. Conforms to the framework.User interface.
-// Roles should be specified with the constants in {{ .name }}/constants.go 
+// Roles should be specified with the constants in hodor/constants.go
 type User struct {
 	Id           int64
 	Username     string
-	PasswordHash string `schema:"-"`
-	FullName     string
+	PasswordHash string
+	FullName     *string
 	Email        string
-	CreatedOn    time.Time `schema:"-"`
+	CreatedOn    time.Time
 	Role         int64
 }
 
-var decoder = schema.NewDecoder()
-
-// SetPassword generates and sets a password hash from a password string and a salt string. 
+// SetPassword generates and sets a password hash from a password string and a salt string.
 // Currently uses the hashing algorithm supplied by the framework. (Required by framework.User)
 func (u *User) SetPassword(password string, salt string) {
 	u.PasswordHash = framework.PasswordHash(password, salt)
@@ -55,7 +52,7 @@ func (u *User) ClearPasswordHash() {
 	u.PasswordHash = ""
 }
 
-// Looks at the data in the user struct and determines if it's valid. Returns an array of errors if it isn't. 
+// Looks at the data in the user struct and determines if it's valid. Returns an array of errors if it isn't.
 func (u *User) GetValidationErrors(a *framework.AppScope) (errors []string) {
 
 	if len(strings.TrimSpace(u.Username)) == 0 {
@@ -150,70 +147,60 @@ func UserAdminEditHandler(r *http.Request, a *framework.AppScope, rs *framework.
 
 	if r.Method == "POST" {
 
-		err = r.ParseForm()
-		if err != nil {
-			log.Print(err)
-			h.Redirect = "/error"
-			return
-		}
+		fn := r.FormValue("FullName")
+		user.Username = r.FormValue("Username")
+		user.FullName = &fn
+		user.Email = r.FormValue("Email")
 
-		err = decoder.Decode(user, r.Form)
+		errors := user.GetValidationErrors(a)
 
-		if err != nil {
-			log.Printf("Can't map: %v", err)
-		} else {
-
-			errors := user.GetValidationErrors(a)
-
-			// Password validation has to be done in the handler because the model doesn't know about the confirmation field 
-			// or that the field is optional if you're not changing it.
-			password := strings.TrimSpace(r.FormValue("Password"))
-			passwordAgain := strings.TrimSpace(r.FormValue("PasswordAgain"))
-			if len(password) > 0 {
-				if password != passwordAgain {
-					errors = append(errors, "Passwords do not match.")
-				} else {
-					salt, _ := a.Config.Get("encryption.salt")
-					user.SetPassword(password, salt)
-				}
-			}
-
-			if user.Id == -1 && len(password) < 1 {
-				errors = append(errors, "Password cannot be blank.")
-			}
-
-			if len(errors) == 0 {
-				if user.Id == -1 {
-					// This is an insert
-					user.CreatedOn = time.Now()
-					err = t.Insert(user)
-					if err != nil {
-						log.Print(err)
-						h.Redirect = "/error"
-						return
-					} else {
-						h.View["success"] = "User created."
-					}
-				} else {
-					// This is an update
-					err = t.Update(user)
-					if err != nil {
-						log.Print(err)
-						h.Redirect = "/error"
-						return
-					} else {
-						h.View["success"] = "User updated."
-					}
-
-				}
-
+		// Password validation has to be done in the handler because the model doesn't know about the confirmation field
+		// or that the field is optional if you're not changing it.
+		password := strings.TrimSpace(r.FormValue("Password"))
+		passwordAgain := strings.TrimSpace(r.FormValue("PasswordAgain"))
+		if len(password) > 0 {
+			if password != passwordAgain {
+				errors = append(errors, "Passwords do not match.")
 			} else {
-				h.View["errors"] = errors
+				salt, _ := a.Config.Get("encryption.salt")
+				user.SetPassword(password, salt)
 			}
-			// Pass back marshaled struct, even if it isn't valid, to allow correction of mistakes.
-			h.View["user"] = user
-
 		}
+
+		if user.Id == -1 && len(password) < 1 {
+			errors = append(errors, "Password cannot be blank.")
+		}
+
+		if len(errors) == 0 {
+			if user.Id == -1 {
+				// This is an insert
+				user.CreatedOn = time.Now()
+				err = t.Insert(user)
+				if err != nil {
+					log.Print(err)
+					h.Redirect = "/error"
+					return
+				} else {
+					h.View["success"] = "User created."
+				}
+			} else {
+				// This is an update
+				err = t.Update(user)
+				if err != nil {
+					log.Print(err)
+					h.Redirect = "/error"
+					return
+				} else {
+					h.View["success"] = "User updated."
+				}
+
+			}
+
+		} else {
+			h.View["errors"] = errors
+		}
+		// Pass back marshaled struct, even if it isn't valid, to allow correction of mistakes.
+		h.View["user"] = user
 
 	}
 	if user.Id != -1 {
