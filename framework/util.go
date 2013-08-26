@@ -51,7 +51,7 @@ func GetIntId(strId string) (intId int64) {
 // GetUrlParams removes the string specified in "pattern" and returns key value pairs as a map of strings.
 func GetUrlParamsMap(pattern string, urlPath string) (urlParams map[string]string) {
 	log.Printf("Got URL path %v and Url Pattern %v", urlPath, pattern)
-	
+
 	restOfUrl := strings.Replace(urlPath, pattern, "", -1)
 
 	if strings.HasPrefix(restOfUrl, "/") {
@@ -79,7 +79,7 @@ func GetUrlParamsMap(pattern string, urlPath string) (urlParams map[string]strin
 
 // GetUrlParams removes the string specified in "pattern" and returns key value pairs as a map of strings.
 func GetUrlParamsArray(pattern string, urlPath string) (urlParams []string) {
-	
+
 	restOfUrl := strings.Replace(urlPath, pattern, "", -1)
 
 	if strings.HasPrefix(restOfUrl, "/") {
@@ -393,7 +393,9 @@ func CopyDir(source string, dest string) (err error) {
 // ParseTemplate uses t as a template (not a filename, but an actual template) applies the data in d to it, and writes it out to a file called o.
 func ParseTemplate(t string, d interface{}, o string) (err error) {
 
-	tmpl, err := template.New("tpl").Parse(t)
+	fnm := GetFuncMap()
+
+	tmpl, err := template.New("tpl").Funcs(fnm).Parse(t)
 	if err != nil {
 		return err
 	}
@@ -420,6 +422,7 @@ func (e *SawsijError) Error() string {
 	return e.What
 }
 
+// Reads a file into a string. Loads data into memory, use with care.
 func ReadFileIntoString(filename string) (s string, err error) {
 	cb, err := ioutil.ReadFile(filename)
 	s = string(cb)

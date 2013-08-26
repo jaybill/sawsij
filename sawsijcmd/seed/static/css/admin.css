@@ -1,0 +1,14 @@
+/* Admin specific styles. */
+
+body { padding-top: 70px; }
+
+.table-clickrows td{
+	cursor: pointer; 
+	cursor: hand;
+}
+
+#piechart{
+	
+	height: 300px;
+}
+

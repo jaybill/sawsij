@@ -3,13 +3,15 @@ package {{.pName}}
 import (
 	"bitbucket.org/jaybill/sawsij/framework"
 	"bitbucket.org/jaybill/sawsij/framework/model"	
-	"log"
+	"log"{{if .importStrconv}}
+	"strconv"{{ end }}
 	"net/http"{{if .importTime}}
-	"time"{{ end }}
+	"time"{{ end }}{{if .importFmt}}	
+	"fmt"{{ end }}
 )
 
 type {{.typeName}} struct { {{ range $field := .struct }}
-	{{$field.FName}} {{$field.FType}}{{ end }} 
+	{{$field.FName}} {{ if $field.CanBeNull}}*{{ end }}{{$field.FType}}{{ end }} 
 }
 
 func (o *{{.typeName}}) GetValidationErrors(a *framework.AppScope) (errors []string) {
@@ -18,8 +20,9 @@ func (o *{{.typeName}}) GetValidationErrors(a *framework.AppScope) (errors []str
 	return
 }
 
-func Admin{{.typeName}}EditHandler(r *http.Request, a *framework.AppScope, rs *framework.RequestScope) (h framework.HandlerResponse, err error) {
+func {{.typeName}}AdminEditHandler(r *http.Request, a *framework.AppScope, rs *framework.RequestScope) (h framework.HandlerResponse, err error) {
 	h.Init()
+	
 	t := &model.Table{Db: a.Db}
 	{{.typeVar}} := &{{.typeName}}{}
 
@@ -36,53 +39,54 @@ func Admin{{.typeName}}EditHandler(r *http.Request, a *framework.AppScope, rs *f
 	}
 
 	if r.Method == "POST" {
+		{{ range $field := .struct }}{{ if $field.IsPk }}{{ else }}{{if eq $field.DisplayType "timestamp"}}// Timestamp field set to current time. This might not be what you want.
+		t{{$field.FName}} := time.Now()
+		{{$.typeVar}}.{{$field.FName}} = {{ if $field.CanBeNull }}&{{ end}}t{{$field.FName}}{{end}}
+		{{if eq $field.FType "string"}}t{{$field.FName}} := r.FormValue("{{$field.FName}}")
+		{{$.typeVar}}.{{$field.FName}} = {{ if $field.CanBeNull }}&{{ end}}t{{$field.FName}}{{end}}
+		{{if eq $field.FType "int64"}}t{{$field.FName}},_ := strconv.ParseInt(r.FormValue("{{$field.FName}}"),10,0)
+		{{$.typeVar}}.{{$field.FName}} = {{ if $field.CanBeNull }}&{{ end}}t{{$field.FName}}
+		{{end}}
+		{{ if eq $field.DisplayType "date"}}		
+		ts{{$field.FName}} := r.FormValue("{{$field.FName}}")
+		if ts{{$field.FName}} != ""{
+			t{{$field.FName}}, _ := time.Parse("01/02/2006",ts{{$field.FName}})			
+			{{$.typeVar}}.{{$field.FName}} = {{ if $field.CanBeNull }}&{{ end}}t{{$field.FName}}							
+		}{{ end }}{{ end }}{{ end }}
+		errors := {{.typeVar}}.GetValidationErrors(a)
+		if len(errors) == 0 {
+			if {{.typeVar}}.Id == -1 {
+				// This is an insert
 
-		err = r.ParseForm()
-		if err != nil {
-			log.Print(err)
-			h.Redirect = "/error"
-			return
-		}
+				err = t.Insert({{.typeVar}})
 
-		err = decoder.Decode({{.typeVar}}, r.Form)
-
-		if err != nil {
-			log.Printf("Can't map: %v", err)
-		} else {
-			errors := {{.typeVar}}.GetValidationErrors(a)
-			if len(errors) == 0 {
-				if {{.typeVar}}.Id == -1 {
-					// This is an insert
-
-					err = t.Insert({{.typeVar}})
-
-					if err != nil {
-						log.Print(err)
-						h.Redirect = "/error"
-						return
-					} else {
-						h.View["success"] = "Record created."
-					}
+				if err != nil {
+					log.Print(err)
+					h.Redirect = "/error"
+					return h,err
 				} else {
-					// This is an update
-					err = t.Update({{.typeVar}})
-					if err != nil {
-						log.Print(err)
-						h.Redirect = "/error"
-						return
-					} else {
-						h.View["success"] = "Record updated."
-					}
-
+					h.View["success"] = "Record created."
+				}
+			} else {
+				// This is an update
+				err = t.Update({{.typeVar}})
+				if err != nil {
+					log.Print(err)
+					h.Redirect = "/error"
+					return h,err
+				} else {
+					h.View["success"] = "Record updated."
 				}
 
-			} else {
-				h.View["errors"] = errors
 			}
 
-			// Pass back marshaled struct, even if it isn't valid, to allow correction of mistakes.
-			h.View["{{.typeVar}}"] = {{.typeVar}}
+		} else {
+			h.View["errors"] = errors
 		}
+
+		// Pass back marshaled struct, even if it isn't valid, to allow correction of mistakes.
+		h.View["{{.typeVar}}"] = {{.typeVar}}
+		
 	}
 	if {{.typeVar}}.Id != -1 {
 		h.View["update"] = true
@@ -90,7 +94,7 @@ func Admin{{.typeName}}EditHandler(r *http.Request, a *framework.AppScope, rs *f
 	return
 }
 
-func Admin{{.typeName}}ListHandler(r *http.Request, a *framework.AppScope, rs *framework.RequestScope) (h framework.HandlerResponse, err error) {
+func {{.typeName}}AdminListHandler(r *http.Request, a *framework.AppScope, rs *framework.RequestScope) (h framework.HandlerResponse, err error) {
 	h.Init()
 
 	t := &model.Table{Db: a.Db}
@@ -107,7 +111,7 @@ func Admin{{.typeName}}ListHandler(r *http.Request, a *framework.AppScope, rs *f
 	return
 }
 
-func Admin{{.typeName}}DeleteHandler(r *http.Request, a *framework.AppScope, rs *framework.RequestScope) (h framework.HandlerResponse, err error) {
+func {{.typeName}}AdminDeleteHandler(r *http.Request, a *framework.AppScope, rs *framework.RequestScope) (h framework.HandlerResponse, err error) {
 	h.Init()
 
 	t := &model.Table{Db: a.Db}
