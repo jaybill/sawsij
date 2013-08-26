@@ -5,7 +5,7 @@
 
 
 <% if .{{.typeVar}}s %>
-<table class="table table-striped table-bordered table-condensed">
+<table class="table table-hover table-clickrows">
   <thead>
     <tr>
 {{ range $field := .struct }}       <th>{{$field.FName}}</th>       
@@ -14,11 +14,10 @@
   <tbody>
     <%range $index,${{.typeVar}} := .{{.typeVar}}s %>
     <tr>
-    {{ range $i, $field := .struct }}<td>
-     
-        <a href="/admin/{{ $.typeVar }}/edit/id/<% ${{ $.typeVar}}.Id %>">
+    {{ range $i, $field := .struct }}<td>      
+    {{ if eq $i 0 }}<a href="/admin/{{ $.typeVar }}/edit/id/<% ${{ $.typeVar}}.Id %>">{{ end }}
             <% ${{$.typeVar}}.{{$field.FName}} %>
-        </a>
+    {{ if eq $i 0 }}</a>{{ end }}
       </td>       
     {{ end }}
     </tr>      
