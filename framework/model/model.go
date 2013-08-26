@@ -216,6 +216,7 @@ func (m *Table) FetchAll(data interface{}, q Query, args ...interface{}) (ents [
 	log.Printf("Query: %q", query)
 
 	rows, err := m.Db.Db.Query(query, args...)
+
 	if err == nil {
 		for rows.Next() {
 			ent := reflect.New(t)
@@ -224,12 +225,13 @@ func (m *Table) FetchAll(data interface{}, q Query, args ...interface{}) (ents [
 				f := ent.Elem().Field(i)
 				cols = append(cols, f.Addr().Interface())
 			}
+			log.Printf("Cols: %+v", cols)
 			err = rows.Scan(cols...)
-
-			ents = append(ents, ent.Interface())
 			if err != nil {
 				log.Print(err)
 			}
+			ents = append(ents, ent.Interface())
+
 		}
 	} else {
 		log.Print(err)

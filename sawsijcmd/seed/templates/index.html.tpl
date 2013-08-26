@@ -1,6 +1,6 @@
 <% template "header.html" .%>
 
-<div class="hero-unit">
+<div class="jumbotron">
  <h1>Welcome!</h1>
   <p>Your new sawsij application is up and running.</p>
 </div>
@@ -31,19 +31,14 @@
 			</li>			
 		</ul>
 	</div>
-	<div class="span6">
-		<p class="pull-right"><img width="180" height="296" src="/static/img/logo.png" title="Hi!"/></p>
+	<div class="span6">		
 		<h2>Documentation</h2>
 		<p>Here's all the relevant documentation.</p>
-
 		<li><a href="https://bitbucket.org/jaybill/sawsij/wiki/Home">Documentation Wiki</a></li>
 		<li><a href="http://go.pkgdoc.org/bitbucket.org/jaybill/sawsij/framework">API Documentation</a></li>
 		<li><a href="http://golang.org/ref/">Go Documentation</a></li>
 		<li><a href="http://golang.org/pkg/text/template/">Template Documentation</a></li>
-		<li><a href="http://twitter.github.com/bootstrap/">Twitter Bootstrap</a></li>
-
-
-
+		<li><a href="http://getbootstrap.com/">Bootstrap</a></li>
 	</div>	
 </div>
 
