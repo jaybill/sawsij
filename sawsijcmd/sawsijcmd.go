@@ -3,7 +3,7 @@ package main
 import (
 	"bitbucket.org/jaybill/sawsij/framework"
 	"bitbucket.org/jaybill/sawsij/framework/model"
-	"bitbucket.org/jaybill/sawsij/resources"
+	"bitbucket.org/jaybill/sawsij/sawsijcmd/resources"
 	"database/sql"
 	"encoding/base64"
 	"fmt"
