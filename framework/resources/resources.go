@@ -1,7 +1,12 @@
 package resources
 
-type StaticDef struct {
-	Filename string
-	Path     string
-	Content  string
+func GetStaticResources() (r map[string]string) {
+
+	r = map[string]
+	string{
+		{{ range $s := .static }}"{{ $s.Name }}":  "{{ $s.Content }}",
+		{{ end }}
+	}
+	return
+
 }
