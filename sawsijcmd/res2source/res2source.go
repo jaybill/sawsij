@@ -1,3 +1,22 @@
+// Copyright 2012 J. William McCarthy. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+/* Provides a command line tool for converting the sawsijcmd seed templates from individual files into a single source
+file containing base64 encoded strings. This shouldn't really ever be needed by the average user and is really only intended
+for the development team to have an easy way to ship the templates and static files.
+
+It takes two params: the first is the location of the "seed" directory within the sawsijcmd source tree, the second is the file to
+output to.
+
+Typical invocation:
+
+res2source ~/workspace_go/sawsij/src/bitbucket.org/jaybill/sawsij/sawsijcmd/seed \
+~/workspace_go/sawsij/src/bitbucket.org/jaybill/sawsij/resources/resources.go
+
+Check out http://sawsij.com for more information and documentation.
+
+*/
 package main
 
 import (
