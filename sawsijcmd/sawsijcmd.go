@@ -3,14 +3,15 @@ package main
 import (
 	"bitbucket.org/jaybill/sawsij/framework"
 	"bitbucket.org/jaybill/sawsij/framework/model"
+	"bitbucket.org/jaybill/sawsij/resources"
 	"database/sql"
+	"encoding/base64"
 	"fmt"
 	"github.com/kylelemons/go-gypsy/yaml"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
-	"text/template"
 )
 
 var env map[string]string
@@ -121,33 +122,6 @@ export SAWSIJ_SETUP
 				os.Exit(1)
 			} else {
 
-				// Download seed file.
-				seedUrl := "https://bitbucket.org/jaybill/sawsij/downloads/seed.zip"
-
-				fmt.Println("Attempting to download seed...")
-
-				zipfile := confdir + "/seed.zip"
-				err = framework.CopyUrlToFile(seedUrl, zipfile)
-				if err != nil {
-					fmt.Println(err)
-					err = os.RemoveAll(confdir)
-					if err != nil {
-						fmt.Println(err)
-					}
-					os.Exit(1)
-				}
-
-				err = framework.UnzipFileToPath(zipfile, confdir+"/seed")
-				if err != nil {
-					fmt.Printf("Can't unzip file: %q\n", err.Error())
-					/*
-						err = os.RemoveAll(confdir)
-						if err != nil {
-							fmt.Println(err)
-						}*/
-					os.Exit(1)
-				}
-
 				fmt.Println("****************************\n** NOTICE! ACTION NEEDED! **\n****************************")
 				fmt.Println("A new file containing sawsij environment variables was created.")
 				fmt.Printf("You must add the line \"source $HOME/.sawsij/sawsijenv\" to the end of %v\n\n", env["HOME"]+"/.profile")
@@ -211,10 +185,6 @@ func new() {
 
 	fmt.Printf("Creating new sawsij app %q in location %v\n", name, path)
 
-	seeddir := sawsijhome + "/seed"
-
-	fmt.Printf("seed dir: %v\n", seeddir)
-
 	tplDir := path + "/templates"
 	binDir := path + "/bin"
 	srcDir := path + "/src"
@@ -222,13 +192,18 @@ func new() {
 	pkgDir := path + "/pkg"
 	sqlChgDir := path + "/sql/changes"
 	sqlObjDir := path + "/sql/objects"
+	staticDir := path + "/static"
 
 	appdirs := []string{
 		tplDir,
+		tplDir + "/crud",
 		srcDir,
 		srcDir + "/" + appserver,
 		srcDir + "/" + name,
 		etcDir,
+		staticDir + "/js",
+		staticDir + "/img",
+		staticDir + "/css",
 		pkgDir,
 		sqlChgDir,
 		sqlObjDir}
@@ -260,6 +235,8 @@ func new() {
 		Dest string
 	}
 
+	templateContent := resources.GetTemplateResources()
+	staticContent := resources.GetStaticResources()
 	var tpls []TplDef
 	tpls = append(tpls, TplDef{"admin.html.tpl", path + "/templates/admin.html"})
 	tpls = append(tpls, TplDef{"admin-users.html.tpl", path + "/templates/admin-users.html"})
@@ -285,43 +262,49 @@ func new() {
 		tpls = append(tpls, TplDef{config["driver"] + "_0001.sql.tpl", path + "/sql/changes/" + config["driver"] + "_" + config["schema"] + "_0001.sql"})
 		tpls = append(tpls, TplDef{config["driver"] + "_views.sql.tpl", path + "/sql/objects/" + config["driver"] + "_" + config["schema"] + "_views.sql"})
 	}
+	var spls []TplDef
+	spls = append(spls, TplDef{"admin-dashboard.js", path + "/static/js/admin-dashboard.js"})
+	spls = append(spls, TplDef{"admin-delete.html.tpl", path + "/templates/crud/admin-delete.html.tpl"})
+	spls = append(spls, TplDef{"admin-edit.html.tpl", path + "/templates/crud/admin-edit.html.tpl"})
+	spls = append(spls, TplDef{"admin.css", path + "/static/css/admin.css"})
+	spls = append(spls, TplDef{"admin.html.tpl", path + "/templates/crud/admin.html.tpl"})
+	spls = append(spls, TplDef{"bootstrap-datepicker.min.js", path + "/static/js/bootstrap-datepicker.min.js"})
+	spls = append(spls, TplDef{"datepicker.css", path + "/static/css/datepicker.css"})
+	spls = append(spls, TplDef{"handler.go.tpl", path + "/templates/crud/handler.go.tpl"})
+	spls = append(spls, TplDef{"sawsij.js", path + "/static/js/sawsij.js"})
+	spls = append(spls, TplDef{"site.css", path + "/static/css/site.css"})
 
 	if itWorked {
 		for _, t := range tpls {
+
+			tpla, err := base64.StdEncoding.DecodeString(templateContent[t.Name])
+			if err != nil {
+				fmt.Println(err)
+				itWorked = false
+			}
+
 			fmt.Printf("Parsing template %v\n", t.Name)
-			pt, err := template.New(t.Name).ParseFiles(seeddir + "/templates/" + t.Name)
+			err = framework.ParseTemplate(string(tpla), config, t.Dest)
 
 			if err != nil {
 				fmt.Println(err)
 				itWorked = false
 			}
 
-			f, err := os.Create(t.Dest)
+		}
+
+		for _, s := range spls {
+			spla, err := base64.StdEncoding.DecodeString(staticContent[s.Name])
 			if err != nil {
 				fmt.Println(err)
 				itWorked = false
-			} else {
-				defer f.Close()
-
-				err = pt.ExecuteTemplate(f, t.Name, config)
-				if err != nil {
-					fmt.Println(err)
-					itWorked = false
-				}
 			}
 
-		}
-
-		err = framework.CopyDir(seeddir+"/static", path+"/static")
-		if err != nil {
-			fmt.Println(err)
-			itWorked = false
-		}
-
-		err = framework.CopyDir(seeddir+"/crud", path+"/templates/crud")
-		if err != nil {
-			fmt.Println(err)
-			itWorked = false
+			err = framework.WriteStringToFile(string(spla), s.Dest)
+			if err != nil {
+				fmt.Println(err)
+				itWorked = false
+			}
 		}
 
 	}
