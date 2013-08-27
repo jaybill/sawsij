@@ -1,3 +1,12 @@
+// Copyright 2012 J. William McCarthy. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+/* Provides a command line tool for creating a new sawsij application.
+
+Check out http://sawsij.com for more information and documentation.
+
+*/
 package main
 
 import (
