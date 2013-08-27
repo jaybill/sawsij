@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-/* Provides a command line tool for creating a new sawsij application.
+/* Provides a command line tool for creating a new sawsij application. Sets up app, copies files, creates tables.
 
 Check out http://sawsij.com for more information and documentation.
 
