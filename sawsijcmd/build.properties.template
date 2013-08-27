@@ -1,5 +1,0 @@
-#Build properties template for sawsijcmd
-#Tue, 19 Jun 2012 16:33:04 -0700
-build=/home/jaybill/workspace_go/sawsij/build
-dist=/home/jaybill/workspace_go/sawsij/dist
-sawsijsrc=/home/jaybill/workspace_go/sawsij
