@@ -15,7 +15,7 @@ import (
 )
 
 var workDir string = ""
-var sConfigFile = flag.String("cf", "./config_test.yaml", "path to config file")
+var configFile = flag.String("cf", "./config_test.yaml", "path to config file")
 
 func standup(t *testing.T) {
 
@@ -127,7 +127,7 @@ func TestRouteAndConfigure(t *testing.T) {
 
 	standup(t)
 	as := new(AppSetup)
-	err := Configure(as, workDir)
+	_, err := Configure(as, workDir)
 	if err != nil {
 		t.Fatal(err)
 	}
