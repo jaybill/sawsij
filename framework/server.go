@@ -15,6 +15,8 @@ package framework
 
 import (
 	"bitbucket.org/jaybill/sawsij/framework/model"
+	_ "bitbucket.org/jaybill/sawsij/framework/model/mysql"
+	"bitbucket.org/jaybill/sawsij/framework/model/postgres"
 	"code.google.com/p/gorilla/sessions"
 	"database/sql"
 	"encoding/base64"
@@ -496,6 +498,15 @@ func Configure(as *AppSetup, basePath string) (a *AppScope, err error) {
 			}
 
 			appScope.Db = &model.DbSetup{Db: db, DefaultSchema: defaultSchema, Schemas: allSchemas}
+			switch driver {
+			case "postgres":
+				appScope.Db.GetQueries = postgres.GetQueries
+			// case "mysql":
+			// 	appScope.Db.GetQueries = mysql.GetQueries
+			default:
+				log.Fatal("Database driver not supported.")
+			}
+
 			if migrateAndExit {
 
 				log.Print("All schemas updated. Exiting.")
