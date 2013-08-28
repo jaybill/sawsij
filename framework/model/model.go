@@ -41,6 +41,23 @@ import (
 	"unicode"
 )
 
+// The Queries interface describes the functions needed for a specific database platform. All these functions will return strings
+// with template database queries to be used by the model package.
+type Queries interface {
+	Update() string
+	Fetch() string
+	FetchAllSelect() string
+	FetchAllWhere() string
+	FetchAllOrder() string
+	FetchAllLimit() string
+	FetchAllOffset() string
+	Insert() string
+	LastInsertId() string
+	Delete() string
+	TableName(string, string) string
+	SequenceName(string, string) string
+}
+
 // Table is the primary means of interaction with the database. It represents the access to a table, not the table itself.
 // The package figures out what table to use based on the type being passed to the various methods of Table.
 // Using anything but a 'flat' struct as a type will have unpredictable results.
@@ -54,6 +71,7 @@ type DbSetup struct {
 	Db            *sql.DB
 	DefaultSchema string
 	Schemas       []Schema
+	GetQueries    func() Queries
 }
 
 // A Schema is used to store schema information, like the schema name and what version it is.
@@ -79,7 +97,7 @@ func (m *Table) Update(data interface{}) (err error) {
 		holders[i] = fmt.Sprintf("%v=$%v", rowInfo.Keys[i], i+1)
 	}
 
-	query := fmt.Sprintf("UPDATE %v SET %v WHERE id=%d", rowInfo.TableName, strings.Join(holders, ","), rowInfo.Id)
+	query := fmt.Sprintf(m.Db.GetQueries().Update(), rowInfo.TableName, strings.Join(holders, ","), rowInfo.Id)
 	log.Printf("Query: %q", query)
 
 	_, err = m.Db.Db.Exec(query, rowInfo.Vals...)
@@ -101,7 +119,7 @@ func (m *Table) Insert(data interface{}) (err error) {
 		holders[i] = fmt.Sprintf("$%v", i+1)
 	}
 
-	query := fmt.Sprintf("INSERT INTO %v (%v) VALUES (%v)", rowInfo.TableName, strings.Join(rowInfo.Keys, ","), strings.Join(holders, ","))
+	query := fmt.Sprintf(m.Db.GetQueries().Insert(), rowInfo.TableName, strings.Join(rowInfo.Keys, ","), strings.Join(holders, ","))
 
 	log.Printf("Query: %q", query)
 	log.Printf("Data: %+v", data)
@@ -111,7 +129,7 @@ func (m *Table) Insert(data interface{}) (err error) {
 	} else {
 		if rowInfo.IdIndex != -1 {
 			log.Printf("Table name is [%v]", rowInfo.TableName)
-			idq := fmt.Sprintf("select currval(%v)", rowInfo.SequenceName)
+			idq := fmt.Sprintf(m.Db.GetQueries().LastInsertId(), rowInfo.SequenceName)
 			log.Printf("Sequence query: %v", idq)
 			row := m.Db.Db.QueryRow(idq)
 			if err != nil {
@@ -137,7 +155,7 @@ func (m *Table) Insert(data interface{}) (err error) {
 func (m *Table) Delete(data interface{}) (err error) {
 	rowInfo := m.getRowInfo(data, false)
 	if rowInfo.Id != -1 {
-		query := fmt.Sprintf("DELETE FROM %v WHERE id=%d", rowInfo.TableName, rowInfo.Id)
+		query := fmt.Sprintf(m.Db.GetQueries().Delete(), rowInfo.TableName, rowInfo.Id)
 		log.Printf("Query: %q", query)
 
 		_, err = m.Db.Db.Exec(query)
@@ -150,12 +168,13 @@ func (m *Table) Delete(data interface{}) (err error) {
 
 // Fetch returns a single row where the id in the table is the Id of the struct.
 func (m *Table) Fetch(data interface{}) (err error) {
+
 	rowInfo := m.getRowInfo(data, false)
 	cols := make([]interface{}, 0)
 	retRow := reflect.ValueOf(data).Elem()
 	dataType := retRow.Type()
 	if rowInfo.Id != -1 {
-		query := fmt.Sprintf("SELECT %v FROM %v WHERE id=%d", strings.Join(rowInfo.Keys, ","), rowInfo.TableName, rowInfo.Id)
+		query := fmt.Sprintf(m.Db.GetQueries().Fetch(), strings.Join(rowInfo.Keys, ","), rowInfo.TableName, rowInfo.Id)
 		log.Printf("Query: %q", query)
 		row := m.Db.Db.QueryRow(query)
 
@@ -196,21 +215,21 @@ func (m *Table) FetchAll(data interface{}, q Query, args ...interface{}) (ents [
 	dataType := retRow.Type()
 	t := reflect.TypeOf(data).Elem()
 
-	query := fmt.Sprintf("SELECT %v FROM %v", strings.Join(rowInfo.Keys, ","), rowInfo.TableName)
+	query := fmt.Sprintf(m.Db.GetQueries().FetchAllSelect(), strings.Join(rowInfo.Keys, ","), rowInfo.TableName)
 	if q.Where != "" {
-		query = fmt.Sprintf("%v WHERE %v", query, q.Where)
+		query = fmt.Sprintf(m.Db.GetQueries().FetchAllWhere(), query, q.Where)
 	}
 
 	if q.Order != "" {
-		query = fmt.Sprintf("%v ORDER BY %v", query, q.Order)
+		query = fmt.Sprintf(m.Db.GetQueries().FetchAllOrder(), query, q.Order)
 	}
 
 	if q.Limit != 0 {
-		query = fmt.Sprintf("%v LIMIT %v", query, q.Limit)
+		query = fmt.Sprintf(m.Db.GetQueries().FetchAllLimit(), query, q.Limit)
 	}
 
 	if q.Offset != 0 {
-		query = fmt.Sprintf("%v OFFSET %v", query, q.Offset)
+		query = fmt.Sprintf(m.Db.GetQueries().FetchAllOffset(), query, q.Offset)
 	}
 
 	log.Printf("Query: %q", query)
@@ -259,11 +278,11 @@ func (m *Table) getTableNames(data interface{}) (tableName string, sequenceName 
 	}
 	dbTableName := MakeDbName(tableName)
 	if m.Schema != "" {
-		tableName = fmt.Sprintf("%q.%q", m.Schema, dbTableName)
-		sequenceName = fmt.Sprintf("'%v.%v'", m.Schema, dbTableName+"_id_seq")
+		tableName = m.Db.GetQueries().TableName(m.Schema, dbTableName)
+		sequenceName = m.Db.GetQueries().SequenceName(m.Schema, dbTableName)
 	} else {
-		tableName = fmt.Sprintf("%q.%q", m.Db.DefaultSchema, dbTableName)
-		sequenceName = fmt.Sprintf("'%v.%v'", m.Db.DefaultSchema, dbTableName+"_id_seq")
+		tableName = m.Db.GetQueries().TableName(m.Db.DefaultSchema, dbTableName)
+		sequenceName = m.Db.GetQueries().SequenceName(m.Db.DefaultSchema, dbTableName)
 	}
 	return
 }
@@ -358,7 +377,7 @@ func (m *Table) InsertBatch(items []interface{}) (err error) {
 			holders[i] = fmt.Sprintf("$%v", i+1)
 		}
 
-		query := fmt.Sprintf("INSERT INTO %v (%v) VALUES (%v)", rowInfo.TableName, strings.Join(rowInfo.Keys, ","), strings.Join(holders, ","))
+		query := fmt.Sprintf(m.Db.GetQueries().Insert(), rowInfo.TableName, strings.Join(rowInfo.Keys, ","), strings.Join(holders, ","))
 
 		log.Printf("Query: %q", query)
 		log.Printf("Data: %+v", data)
@@ -370,7 +389,7 @@ func (m *Table) InsertBatch(items []interface{}) (err error) {
 		} else {
 			if rowInfo.IdIndex != -1 {
 				log.Printf("Table name is [%v]", rowInfo.TableName)
-				idq := fmt.Sprintf("select currval(%v)", rowInfo.SequenceName)
+				idq := fmt.Sprintf(m.Db.GetQueries().LastInsertId(), rowInfo.SequenceName)
 				log.Printf("Sequence query: %v", idq)
 				row := t.QueryRow(idq)
 				if err != nil {
