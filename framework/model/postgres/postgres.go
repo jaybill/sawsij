@@ -47,7 +47,7 @@ func (q *Queries) Delete() string {
 }
 
 func (q *Queries) LastInsertId(seqId string) string {
-	return "SELECT CURRVAL(seqId)"
+	return fmt.Sprintf("SELECT CURRVAL(%v)", seqId)
 }
 
 func (q *Queries) TableName(schema string, tablename string) string {
