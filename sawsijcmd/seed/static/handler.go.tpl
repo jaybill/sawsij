@@ -14,6 +14,15 @@ type {{.typeName}} struct { {{ range $field := .struct }}
 	{{$field.FName}} {{ if $field.CanBeNull}}*{{ end }}{{$field.FType}}{{ end }} 
 }
 
+
+func {{.typeName}}Routes(rg map[string][]int) {
+
+	framework.Route(framework.RouteConfig{Pattern: "/admin/{{.typeVar}}", Handler: {{.typeName}}AdminListHandler, Roles: rg["admin"]})
+	framework.Route(framework.RouteConfig{Pattern: "/admin/{{.typeVar}}/edit", Handler: {{.typeName}}AdminEditHandler, Roles: rg["admin"]})
+	framework.Route(framework.RouteConfig{Pattern: "/admin/{{.typeVar}}/delete", Handler: {{.typeName}}AdminDeleteHandler, Roles: rg["admin"]})
+
+}
+
 func (o *{{.typeName}}) GetValidationErrors(a *framework.AppScope) (errors []string) {
 	// Add validation here
 
