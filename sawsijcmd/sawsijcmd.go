@@ -12,6 +12,8 @@ package main
 import (
 	"bitbucket.org/jaybill/sawsij/framework"
 	"bitbucket.org/jaybill/sawsij/framework/model"
+	"bitbucket.org/jaybill/sawsij/framework/model/mysql"
+	"bitbucket.org/jaybill/sawsij/framework/model/postgres"
 	"bitbucket.org/jaybill/sawsij/sawsijcmd/resources"
 	"database/sql"
 	"encoding/base64"
@@ -20,6 +22,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 )
 
@@ -147,12 +150,20 @@ export SAWSIJ_SETUP
 func new() {
 	var err error
 	var itWorked bool = true
+	var queries model.Queries
 
 	config := make(map[string]string)
-	name := ""
 	fmt.Println("****************************\n** CREATE NEW APPLICATION **\n****************************")
-	for name == "" {
+
+	name := ""
+	var validName = regexp.MustCompile(`^[a-z][a-z0-9]+$`)
+
+	for !validName.MatchString(name) {
 		name, _ = framework.GetUserInput("Application name", name)
+		if !validName.MatchString(name) {
+			fmt.Println("Names must start with a letter, be at least 2 characters and can only contain numbers and lowercase letters.")
+		}
+
 	}
 
 	config["name"] = name
@@ -166,19 +177,66 @@ func new() {
 	config["salt"] = framework.MakeRandomId()
 	config["key"] = framework.MakeRandomId()
 
-	doDb, _ := framework.GetUserInput("Configure database?", "Y")
+	var doDb string
+	for doDb != "y" && doDb != "n" {
+		doDb, _ = framework.GetUserInput("Configure database?(y|n)", "y")
+	}
 
-	if doDb == "Y" {
+	var dbes string = ""
+	var dbed string = ""
+
+	if doDb == "y" {
 
 		fmt.Println("****************************\n** DATABASE CONFIGURATION **\n****************************")
 
-		config["driver"], _ = framework.GetUserInput("Database driver", "postgres")
+		for config["driver"] != "postgres" && config["driver"] != "mysql" {
+			config["driver"], _ = framework.GetUserInput("Database driver (mysql|postgres)", "")
+
+			if config["driver"] != "postgres" && config["driver"] != "mysql" {
+				fmt.Println("Please type 'postgres' or 'mysql'")
+			}
+		}
+
+		dbhost, _ := framework.GetUserInput("Database host", "localhost")
+		var dp string
+		if config["driver"] == "postgres" {
+			dp = "5432"
+		} else {
+			dp = "3306"
+		}
+
+		var validPort = regexp.MustCompile(`^\d{1,5}(\.\d{1,2})?$`)
+
+		var dbport string
+		for !validPort.MatchString(dbport) {
+
+			dbport, _ = framework.GetUserInput("Database port", dp)
+			if !validPort.MatchString(dbport) {
+				fmt.Println("Please select a valid port or press enter to accept the default.")
+			}
+		}
+
 		dbname, _ := framework.GetUserInput("Database name", name)
 		config["schema"], _ = framework.GetUserInput("Database schema", name)
 		dbuser, _ := framework.GetUserInput("Database user", name)
 		dbpass, _ := framework.GetUserInput("Database password", "")
-		dbssl, _ := framework.GetUserInput("Database SSL Mode", "disable")
-		config["connect"] = fmt.Sprintf("user=%v password=%v dbname=%v sslmode=%v", dbuser, dbpass, dbname, dbssl)
+
+		switch config["driver"] {
+		case "postgres":
+			queries = postgres.GetQueries()
+			dbes = config["schema"]
+			dbed = ""
+		case "mysql":
+			queries = mysql.GetQueries()
+			dbed = dbname
+			dbes = ""
+		default:
+			bomb(&framework.SawsijError{"Driver not supported"})
+		}
+		//user string, password string, host string, dbname string, port string
+		strcon := queries.ConnString(dbuser, dbpass, dbhost, dbname, dbport)
+
+		config["connect"], _ = framework.GetUserInput("Press enter to accept connection string or enter a new one:\n", strcon)
 		fmt.Println("****************************\n**   ADMIN ACCOUNT SETUP  **\n****************************")
 		config["admin_email"], _ = framework.GetUserInput("Admin Email", name+"@"+name+".com")
 		password := ""
@@ -270,6 +328,7 @@ func new() {
 	if doDb == "Y" {
 		tpls = append(tpls, TplDef{config["driver"] + "_0001.sql.tpl", path + "/sql/changes/" + config["driver"] + "_" + config["schema"] + "_0001.sql"})
 		tpls = append(tpls, TplDef{config["driver"] + "_views.sql.tpl", path + "/sql/objects/" + config["driver"] + "_" + config["schema"] + "_views.sql"})
+
 	}
 	var spls []TplDef
 	spls = append(spls, TplDef{"admin-dashboard.js", path + "/static/js/admin-dashboard.js"})
@@ -327,8 +386,8 @@ func new() {
 		}
 
 		// TODO Remove hardcoded sql string, replace with driver based lookup (issue #11)
-		tcq := "SELECT count(*) as tables FROM information_schema.tables WHERE table_schema = $1;"
-		row := db.QueryRow(tcq, config["schema"])
+		tcq := queries.DbEmpty(dbes, dbed)
+		row := db.QueryRow(tcq)
 		tcount := 0
 
 		err = row.Scan(&tcount)
@@ -535,9 +594,26 @@ func factory() {
 		bomb(err)
 	}
 
-	query := "select column_name,data_type,is_nullable from information_schema.columns where table_name = $1 and table_schema = $2 order by ordinal_position;"
+	var queries model.Queries
+	dbName := ""
 
-	rows, err := db.Query(query, tName, sName)
+	switch driver {
+
+	case "postgres":
+		queries = postgres.GetQueries()
+
+	case "mysql":
+		queries = mysql.GetQueries()
+		cm := queries.ParseConnect(connect)
+		dbName = cm["dbname"]
+		fmt.Printf("Dbname is %v\n", dbName)
+	default:
+		bomb(&framework.SawsijError{"Driver not supported"})
+	}
+
+	query := queries.DescribeTable(tName, sName, dbName)
+
+	rows, err := db.Query(query)
 	tV := make(map[string]interface{})
 
 	type fieldDef struct {
@@ -567,6 +643,11 @@ func factory() {
 			case "bigint":
 				sType = "int64"
 				sDType = "number"
+				tV["importStrconv"] = true
+			case "int":
+				sType = "int64"
+				sDType = "number"
+				tV["importStrconv"] = true
 			case "integer":
 				sType = "int64"
 				sDType = "number"
@@ -579,6 +660,14 @@ func factory() {
 				sDType = "timestamp"
 				sType = "time.Time"
 				tV["importTime"] = true
+			case "datetime":
+				sDType = "timestamp"
+				sType = "time.Time"
+				tV["importTime"] = true
+			case "timestamp":
+				sDType = "timestamp"
+				sType = "time.Time"
+				tV["importTime"] = true
 			case "date":
 				sDType = "date"
 				sType = "time.Time"
@@ -587,6 +676,9 @@ func factory() {
 				sDType = "text"
 				sType = "string"
 			case "character varying":
+				sDType = "text"
+				sType = "string"
+			case "varchar":
 				sDType = "text"
 				sType = "string"
 			default:
@@ -652,6 +744,15 @@ func factory() {
 		}
 
 		fmt.Printf("Generated handler and templates for %v.%v\n", sName, tName)
+
+		fmt.Println("\n\n****************************\n**    ACTION REQUIRED     **\n****************************")
+		fmt.Println("\nSawsij factory has generated the code for your table.\nTo use it you must do the following:\n\n")
+		fmt.Printf("1. Edit the file %v/src/%vserver/%vserver.go \n", basePath, pName, pName)
+		fmt.Println("2. Find the line near the bottom of the file that reads \"Custom Routes\" ")
+		fmt.Println("3. Add the following line of code below that line:")
+		fmt.Printf("\n\t%v.%vRoutes(rg)\n\n", pName, tV["typeName"])
+		fmt.Println("4. Recompile")
+		fmt.Println("")
 
 	} else {
 		bomb(err)
