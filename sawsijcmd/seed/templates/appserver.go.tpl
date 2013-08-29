@@ -12,13 +12,14 @@ import (
 	"log"
 	"net/http"
 	"time"
+	"fmt"
 )
 
 // Returns a type that conforms to the framework.User interface.
 func GetUser(username string, a *framework.AppScope) (user framework.User) {
 	t := &model.Table{Db: a.Db}
 	dbuser := &{{ .name }}.User{}
-	q := model.Query{Where: "username = $1"}
+	q := model.Query{Where: fmt.Sprintf("username = %v",a.Db.GetQueries().P(1))}
 	users, _ := t.FetchAll(dbuser, q, username)
 	if len(users) == 1 {
 		user = users[0].(*{{ .name }}.User)

@@ -52,10 +52,16 @@ type Queries interface {
 	FetchAllLimit() string
 	FetchAllOffset() string
 	Insert() string
-	LastInsertId() string
+	LastInsertId(string) string
 	Delete() string
 	TableName(string, string) string
 	SequenceName(string, string) string
+	DbVersion() string
+	DbEmpty(string, string) string
+	DescribeTable(string, string, string) string
+	ConnString(string, string, string, string, string) string
+	P(int) string
+	ParseConnect(string) map[string]string
 }
 
 // Table is the primary means of interaction with the database. It represents the access to a table, not the table itself.
@@ -94,7 +100,7 @@ func (m *Table) Update(data interface{}) (err error) {
 	holders := make([]string, len(rowInfo.Keys))
 
 	for i := 0; i < len(rowInfo.Keys); i++ {
-		holders[i] = fmt.Sprintf("%v=$%v", rowInfo.Keys[i], i+1)
+		holders[i] = fmt.Sprintf("%v=%v", rowInfo.Keys[i], m.Db.GetQueries().P(i+1))
 	}
 
 	query := fmt.Sprintf(m.Db.GetQueries().Update(), rowInfo.TableName, strings.Join(holders, ","), rowInfo.Id)
@@ -111,25 +117,26 @@ func (m *Table) Update(data interface{}) (err error) {
 // Insert expects a pointer to a struct that represents a row in your database. The "Id" field of the referenced struct will be populated with the
 // identity value if the row is successfully inserted.
 func (m *Table) Insert(data interface{}) (err error) {
-
 	rowInfo := m.getRowInfo(data, false)
+
 	holders := make([]string, len(rowInfo.Keys))
 
 	for i := 0; i < len(rowInfo.Keys); i++ {
-		holders[i] = fmt.Sprintf("$%v", i+1)
+		holders[i] = fmt.Sprintf("%v", m.Db.GetQueries().P(i+1))
 	}
 
 	query := fmt.Sprintf(m.Db.GetQueries().Insert(), rowInfo.TableName, strings.Join(rowInfo.Keys, ","), strings.Join(holders, ","))
 
 	log.Printf("Query: %q", query)
 	log.Printf("Data: %+v", data)
+
 	_, err = m.Db.Db.Exec(query, rowInfo.Vals...)
 	if err != nil {
 		log.Print(err)
 	} else {
 		if rowInfo.IdIndex != -1 {
 			log.Printf("Table name is [%v]", rowInfo.TableName)
-			idq := fmt.Sprintf(m.Db.GetQueries().LastInsertId(), rowInfo.SequenceName)
+			idq := m.Db.GetQueries().LastInsertId(rowInfo.SequenceName)
 			log.Printf("Sequence query: %v", idq)
 			row := m.Db.Db.QueryRow(idq)
 			if err != nil {
@@ -284,21 +291,25 @@ func (m *Table) getTableNames(data interface{}) (tableName string, sequenceName 
 		tableName = m.Db.GetQueries().TableName(m.Db.DefaultSchema, dbTableName)
 		sequenceName = m.Db.GetQueries().SequenceName(m.Db.DefaultSchema, dbTableName)
 	}
+
 	return
 }
 
 func (m *Table) getRowInfo(data interface{}, includeId bool) (rowInfo forDb) {
 	s := reflect.ValueOf(data).Elem()
 	typeOfT := s.Type()
+
 	rowInfo.Vals = make([]interface{}, 0)
 
 	rowInfo.IdIndex = -1
 
 	rowInfo.TableName = typeOfT.String()
+
 	parts := strings.Split(rowInfo.TableName, ".")
 	if len(parts) > 0 {
 		rowInfo.TableName = parts[len(parts)-1]
 	}
+
 	rowInfo.TableName, rowInfo.SequenceName = m.getTableNames(data)
 
 	for i := 0; i < s.NumField(); i++ {
@@ -389,7 +400,7 @@ func (m *Table) InsertBatch(items []interface{}) (err error) {
 		} else {
 			if rowInfo.IdIndex != -1 {
 				log.Printf("Table name is [%v]", rowInfo.TableName)
-				idq := fmt.Sprintf(m.Db.GetQueries().LastInsertId(), rowInfo.SequenceName)
+				idq := m.Db.GetQueries().LastInsertId(rowInfo.SequenceName)
 				log.Printf("Sequence query: %v", idq)
 				row := t.QueryRow(idq)
 				if err != nil {
