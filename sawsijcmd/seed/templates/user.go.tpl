@@ -71,10 +71,10 @@ func (u *User) GetValidationErrors(a *framework.AppScope) (errors []string) {
 	var err error
 
 	if u.Id == -1 {
-		q.Where = fmt.Sprintf("%v = $1", model.MakeDbName("Email"))
+		q.Where = fmt.Sprintf("%v = %v", model.MakeDbName("Email"), a.Db.GetQueries().P(1))
 		users, err = t.FetchAll(user, q, u.Email)
 	} else {
-		q.Where = fmt.Sprintf("%v = $1 and %v <> $2", model.MakeDbName("Email"), model.MakeDbName("Id"))
+		q.Where = fmt.Sprintf("%v = %v and %v <> %v", model.MakeDbName("Email"), a.Db.GetQueries().P(1), model.MakeDbName("Id"), a.Db.GetQueries().P(2))
 		users, err = t.FetchAll(user, q, u.Email, u.Id)
 	}
 
@@ -88,10 +88,10 @@ func (u *User) GetValidationErrors(a *framework.AppScope) (errors []string) {
 	}
 
 	if u.Id == -1 {
-		q.Where = fmt.Sprintf("%v = $1", model.MakeDbName("Username"))
+		q.Where = fmt.Sprintf("%v = %v", model.MakeDbName("Username"), a.Db.GetQueries().P(1))
 		users, err = t.FetchAll(user, q, u.Username)
 	} else {
-		q.Where = fmt.Sprintf("%v = $1 and %v <> $2", model.MakeDbName("Username"), model.MakeDbName("Id"))
+		q.Where = fmt.Sprintf("%v = %v and %v <> %v", model.MakeDbName("Username"), a.Db.GetQueries().P(1), model.MakeDbName("Id"), a.Db.GetQueries().P(2))
 		users, err = t.FetchAll(user, q, u.Username, u.Id)
 	}
 
