@@ -296,6 +296,7 @@ func GetUserInput(prompt string, defaultAnswer string) (answer string, err error
 	}
 
 	fmt.Printf(fmtPrompt, prompt, defaultAnswer)
+
 	rd := bufio.NewReader(os.Stdin)
 	line, _, err := rd.ReadLine()
 

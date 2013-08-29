@@ -15,7 +15,7 @@ package framework
 
 import (
 	"bitbucket.org/jaybill/sawsij/framework/model"
-	_ "bitbucket.org/jaybill/sawsij/framework/model/mysql"
+	"bitbucket.org/jaybill/sawsij/framework/model/mysql"
 	"bitbucket.org/jaybill/sawsij/framework/model/postgres"
 	"code.google.com/p/gorilla/sessions"
 	"database/sql"
@@ -24,6 +24,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	_ "github.com/bmizerany/pq"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/kylelemons/go-gypsy/yaml"
 	"io"
 	"log"
@@ -444,12 +445,21 @@ func Configure(as *AppSetup, basePath string) (a *AppScope, err error) {
 
 		dBconfigFilename := appScope.BasePath + "/etc/dbversions.yaml"
 		defaultSchema, allSchemas, err := model.ParseDbVersionsFile(dBconfigFilename)
+		appScope.Db = &model.DbSetup{Db: db, DefaultSchema: defaultSchema, Schemas: allSchemas}
+		switch driver {
+		case "postgres":
+			appScope.Db.GetQueries = postgres.GetQueries
+		case "mysql":
+			appScope.Db.GetQueries = mysql.GetQueries
+		default:
+			log.Fatal("Database driver not supported.")
+		}
 
 		if err == nil {
 
 			for _, schema := range allSchemas {
 				// TODO Remove hardcoded sql string, replace with driver based lookup (issue #11)
-				query := fmt.Sprintf("SELECT version_id from %v.sawsij_db_version ORDER BY ran_on DESC LIMIT 1;", schema.Name)
+				query := fmt.Sprintf(appScope.Db.GetQueries().DbVersion(), schema.Name)
 				row := db.QueryRow(query)
 				var dbversion int64 = 0
 
@@ -462,6 +472,7 @@ func Configure(as *AppSetup, basePath string) (a *AppScope, err error) {
 
 						if migrateAndExit {
 							dbs := &model.DbSetup{Db: db}
+							dbs.GetQueries = appScope.Db.GetQueries
 							t := &model.Table{Db: dbs, Schema: schema.Name}
 							log.Printf("Running database migration on %q", schema.Name)
 							for i := dbversion + 1; i <= schema.Version; i++ {
@@ -474,6 +485,7 @@ func Configure(as *AppSetup, basePath string) (a *AppScope, err error) {
 								}
 								dbv := &model.SawsijDbVersion{VersionId: i, RanOn: time.Now()}
 								t.Insert(dbv)
+								log.Printf("Inserted record: %+v", dbv)
 
 							}
 
@@ -495,16 +507,6 @@ func Configure(as *AppSetup, basePath string) (a *AppScope, err error) {
 
 				}
 
-			}
-
-			appScope.Db = &model.DbSetup{Db: db, DefaultSchema: defaultSchema, Schemas: allSchemas}
-			switch driver {
-			case "postgres":
-				appScope.Db.GetQueries = postgres.GetQueries
-			// case "mysql":
-			// 	appScope.Db.GetQueries = mysql.GetQueries
-			default:
-				log.Fatal("Database driver not supported.")
 			}
 
 			if migrateAndExit {
