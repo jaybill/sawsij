@@ -5,9 +5,9 @@
 package framework
 
 import (
-	//"fmt"
 	"fmt"
 	"github.com/russross/blackfriday"
+	"reflect"
 	"strings"
 	"text/template"
 	"time"
@@ -30,6 +30,18 @@ func DateFormat(t time.Time, layout string) (datestring string) {
 // Compare is a quick and dirty comparison function. It will convert whatever you give it to strings and see if the two values are equal.
 // Whitespace is trimmed. Used by the template parser as "eq"
 func Compare(a, b interface{}) (equal bool) {
+
+	ta := reflect.ValueOf(a)
+	tb := reflect.ValueOf(b)
+
+	if strings.Contains(ta.Type().String(), "*") {
+		a = reflect.Indirect(ta).Interface()
+	}
+
+	if strings.Contains(tb.Type().String(), "*") {
+		b = reflect.Indirect(tb).Interface()
+	}
+
 	equal = false
 	if strings.TrimSpace(fmt.Sprintf("%v", a)) == strings.TrimSpace(fmt.Sprintf("%v", b)) {
 		equal = true
@@ -40,6 +52,18 @@ func Compare(a, b interface{}) (equal bool) {
 // NotEqual is a quick and dirty comparison function. It will convert whatever you give it to strings and see if the two values are not equal.
 // Whitespace is trimmed. Used by the template parser as "ne"
 func NotEqual(a, b interface{}) (nequal bool) {
+
+	ta := reflect.ValueOf(a)
+	tb := reflect.ValueOf(b)
+
+	if strings.Contains(ta.Type().String(), "*") {
+		a = reflect.Indirect(ta).Interface()
+	}
+
+	if strings.Contains(tb.Type().String(), "*") {
+		b = reflect.Indirect(tb).Interface()
+	}
+
 	nequal = false
 	if strings.TrimSpace(fmt.Sprintf("%v", a)) != strings.TrimSpace(fmt.Sprintf("%v", b)) {
 		nequal = true
