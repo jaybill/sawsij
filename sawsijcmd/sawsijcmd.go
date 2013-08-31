@@ -325,7 +325,7 @@ func new() {
 	tpls = append(tpls, TplDef{"license.tpl", path + "/LICENSE"})
 	tpls = append(tpls, TplDef{"user.go.tpl", path + "/src/" + name + "/user.go"})
 
-	if doDb == "Y" {
+	if doDb == "y" {
 		tpls = append(tpls, TplDef{config["driver"] + "_0001.sql.tpl", path + "/sql/changes/" + config["driver"] + "_" + config["schema"] + "_0001.sql"})
 		tpls = append(tpls, TplDef{config["driver"] + "_views.sql.tpl", path + "/sql/objects/" + config["driver"] + "_" + config["schema"] + "_views.sql"})
 
@@ -377,7 +377,7 @@ func new() {
 
 	}
 
-	if itWorked && doDb == "Y" {
+	if itWorked && doDb == "y" {
 
 		db, err := sql.Open(config["driver"], config["connect"])
 		if err != nil {
@@ -507,7 +507,7 @@ Your username is "admin" and your password is the one you chose above.
 		} else {
 
 			fmt.Printf(cm, path, path, appserver, config["port"])
-			if doDb == "Y" {
+			if doDb == "y" {
 				fmt.Printf(cm2, config["port"])
 			}
 		}
