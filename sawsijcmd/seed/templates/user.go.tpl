@@ -2,7 +2,7 @@
 // Use of this source code is governed by license
 // that can be found in the LICENSE file.
 
-package hodor
+package {{ .name }}
 
 import (
 	"bitbucket.org/jaybill/sawsij/framework"
@@ -15,7 +15,7 @@ import (
 )
 
 // User represents an application user in the database. Conforms to the framework.User interface.
-// Roles should be specified with the constants in hodor/constants.go
+// Roles should be specified with the constants in {{ .name }}/constants.go
 type User struct {
 	Id           int64
 	Username     string
