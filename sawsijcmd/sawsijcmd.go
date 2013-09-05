@@ -636,6 +636,11 @@ func factory() {
 				bomb(err)
 			}
 
+			var isPk bool = false
+			if model.MakeFieldName(colName) == "Id" {
+				isPk = true
+			}
+
 			var sType string
 			var sDType string
 
@@ -646,7 +651,9 @@ func factory() {
 			case "bigint", "int", "integer", "int4", "int8":
 				sType = "int64"
 				sDType = "number"
-				tV["importStrconv"] = true
+				if !isPk {
+					tV["importStrconv"] = true
+				}
 			case "timestamp without time zone", "timestamp with time zone", "datetime", "timestamp":
 				sDType = "timestamp"
 				sType = "time.Time"
@@ -672,11 +679,6 @@ func factory() {
 			var sCbn bool = false
 			if canBeNull == "YES" {
 				sCbn = true
-			}
-
-			var isPk bool = false
-			if model.MakeFieldName(colName) == "Id" {
-				isPk = true
 			}
 
 			sA = append(sA, fieldDef{model.MakeFieldName(colName), sType, sCbn, isPk, sDType})
