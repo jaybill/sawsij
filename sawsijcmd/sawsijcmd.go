@@ -638,33 +638,16 @@ func factory() {
 
 			var sType string
 			var sDType string
+
+			//fmt.Printf("%v is %v\n", colName, dType)
+
 			switch dType {
 
-			case "bigint":
+			case "bigint", "int", "integer", "int4", "int8":
 				sType = "int64"
 				sDType = "number"
 				tV["importStrconv"] = true
-			case "int":
-				sType = "int64"
-				sDType = "number"
-				tV["importStrconv"] = true
-			case "integer":
-				sType = "int64"
-				sDType = "number"
-				tV["importStrconv"] = true
-			case "timestamp without time zone":
-				sDType = "timestamp"
-				sType = "time.Time"
-				tV["importTime"] = true
-			case "timestamp with time zone":
-				sDType = "timestamp"
-				sType = "time.Time"
-				tV["importTime"] = true
-			case "datetime":
-				sDType = "timestamp"
-				sType = "time.Time"
-				tV["importTime"] = true
-			case "timestamp":
+			case "timestamp without time zone", "timestamp with time zone", "datetime", "timestamp":
 				sDType = "timestamp"
 				sType = "time.Time"
 				tV["importTime"] = true
@@ -672,16 +655,17 @@ func factory() {
 				sDType = "date"
 				sType = "time.Time"
 				tV["importTime"] = true
-			case "text":
+			case "char", "text", "character varying", "varchar":
 				sDType = "text"
 				sType = "string"
-			case "character varying":
+			case "double precision", "real", "float4", "float8":
+				sType = "float64"
 				sDType = "text"
-				sType = "string"
-			case "varchar":
-				sDType = "text"
-				sType = "string"
+			case "bool", "boolean":
+				sType = "bool"
+				sDType = "checkbox"
 			default:
+				sDType = "text"
 				sType = "string"
 			}
 
