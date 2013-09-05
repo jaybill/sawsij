@@ -54,8 +54,15 @@ func {{.typeName}}AdminEditHandler(r *http.Request, a *framework.AppScope, rs *f
 		{{if eq $field.FType "string"}}t{{$field.FName}} := r.FormValue("{{$field.FName}}")
 		{{$.typeVar}}.{{$field.FName}} = {{ if $field.CanBeNull }}&{{ end}}t{{$field.FName}}{{end}}
 		{{if eq $field.FType "int64"}}t{{$field.FName}},_ := strconv.ParseInt(r.FormValue("{{$field.FName}}"),10,0)
-		{{$.typeVar}}.{{$field.FName}} = {{ if $field.CanBeNull }}&{{ end}}t{{$field.FName}}
-		{{end}}
+		{{$.typeVar}}.{{$field.FName}} = {{ if $field.CanBeNull }}&{{ end}}t{{$field.FName}}{{end}}
+		{{if eq $field.FType "float64"}}t{{$field.FName}},_ := strconv.ParseFloat(r.FormValue("{{$field.FName}}"),64)
+		{{$.typeVar}}.{{$field.FName}} = {{ if $field.CanBeNull }}&{{ end}}t{{$field.FName}}{{end}}		
+		{{if eq $field.FType "bool"}}var t{{$field.FName}} bool
+		t{{$field.FName}},err = strconv.ParseBool(r.FormValue("{{$field.FName}}"))
+		if err != nil{
+			t{{$field.FName}} = false;
+		}
+		{{$.typeVar}}.{{$field.FName}} = {{ if $field.CanBeNull }}&{{ end}}t{{$field.FName}}{{end}}
 		{{ if eq $field.DisplayType "date"}}		
 		ts{{$field.FName}} := r.FormValue("{{$field.FName}}")
 		if ts{{$field.FName}} != ""{
