@@ -18,7 +18,12 @@
         class="form-control" 
         id="{{$field.FName}}" 
         name="{{$field.FName}}" 
-        value="<% if .{{$.typeVar}}.{{$field.FName}} %><% .{{$.typeVar}}.{{$field.FName}} %><% end %>"></div>{{end}}  
+        value="<% if .{{$.typeVar}}.{{$field.FName}} %><% .{{$.typeVar}}.{{$field.FName}} %><% end %>"></div>{{end}} 
+      {{ if eq $field.DisplayType "checkbox"}}<div class="checkbox"><label><input 
+        type="checkbox"         
+        id="{{$field.FName}}" 
+        name="{{$field.FName}}" 
+        value="true" <% if eq .{{$.typeVar}}.{{$field.FName}} "true" %> checked<% end %>>{{$field.FName}}</label></div>{{end}}         
       {{ if eq $field.DisplayType "number"}}<div class="form-group"><label class="control-label" for="{{$field.FName}}">{{$field.FName}}</label><input 
         type="number" 
         placeholder="{{$field.FName}}" 
