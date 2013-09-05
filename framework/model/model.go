@@ -157,6 +157,26 @@ func (m *Table) Insert(data interface{}) (err error) {
 	return
 }
 
+// Insert expects a pointer to a struct that represents a row in your database. Assumes your Id field will be set in the struct.
+func (m *Table) InsertWithoutAutoId(data interface{}) (err error) {
+	rowInfo := m.getRowInfo(data, true)
+
+	holders := make([]string, len(rowInfo.Keys))
+
+	for i := 0; i < len(rowInfo.Keys); i++ {
+		holders[i] = fmt.Sprintf("%v", m.Db.GetQueries().P(i+1))
+	}
+
+	query := fmt.Sprintf(m.Db.GetQueries().Insert(), rowInfo.TableName, strings.Join(rowInfo.Keys, ","), strings.Join(holders, ","))
+
+	_, err = m.Db.Db.Exec(query, rowInfo.Vals...)
+	if err != nil {
+		log.Print(err)
+	}
+
+	return
+}
+
 // Delete takes a pointer to a struct and deletes the row where the id in the table is the Id of the struct.
 // Note that you don't need to have acquired this struct from a row, passing in a pointer to something like {Id: 4} will totally work.
 func (m *Table) Delete(data interface{}) (err error) {
