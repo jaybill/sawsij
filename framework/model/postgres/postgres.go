@@ -46,6 +46,10 @@ func (q *Queries) Delete() string {
 	return "DELETE FROM %v WHERE id=%d"
 }
 
+func (q *Queries) DeleteWhere() string {
+	return "DELETE FROM %v WHERE %v"
+}
+
 func (q *Queries) LastInsertId(seqId string) string {
 	return fmt.Sprintf("SELECT CURRVAL(%v)", seqId)
 }

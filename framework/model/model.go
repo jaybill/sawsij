@@ -54,6 +54,7 @@ type Queries interface {
 	Insert() string
 	LastInsertId(string) string
 	Delete() string
+	DeleteWhere() string
 	TableName(string, string) string
 	SequenceName(string, string) string
 	DbVersion() string
@@ -190,6 +191,22 @@ func (m *Table) Delete(data interface{}) (err error) {
 			log.Print(err)
 		}
 	}
+	return
+}
+
+// Delete takes a pointer to a struct and deletes the row where the id in the table is the Id of the struct.
+// Note that you don't need to have acquired this struct from a row, passing in a pointer to something like {Id: 4} will totally work.
+func (m *Table) DeleteWhere(data interface{}, whereClause string) (err error) {
+	rowInfo := m.getRowInfo(data, false)
+
+	query := fmt.Sprintf(m.Db.GetQueries().DeleteWhere(), rowInfo.TableName, whereClause)
+	log.Printf("Query: %q", query)
+
+	_, err = m.Db.Db.Exec(query)
+	if err != nil {
+		log.Print(err)
+	}
+
 	return
 }
 
