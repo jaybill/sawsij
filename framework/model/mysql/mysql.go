@@ -47,6 +47,10 @@ func (q *Queries) Delete() string {
 	return "DELETE FROM %v WHERE id=%d"
 }
 
+func (q *Queries) DeleteWhere() string {
+	return "DELETE FROM %v WHERE %v"
+}
+
 func (q *Queries) LastInsertId(seqId string) string {
 	return "SELECT LAST_INSERT_ID();"
 }

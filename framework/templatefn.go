@@ -90,6 +90,7 @@ func GetFuncMap() (fnm template.FuncMap) {
 	fnm["truncate"] = Truncate
 	fnm["dateformat"] = DateFormat
 	fnm["markdown"] = MarkDown
+	fnm["round"] = Round
 	fnm["eq"] = Compare
 	fnm["ne"] = NotEqual
 	return
