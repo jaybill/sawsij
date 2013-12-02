@@ -11,6 +11,7 @@ import (
 	"code.google.com/p/go.crypto/bcrypt"
 	"crypto/md5"
 	"fmt"
+	"html/template"
 	"io"
 	"io/ioutil"
 	"log"
@@ -20,7 +21,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"text/template"
 	"time"
 )
 
