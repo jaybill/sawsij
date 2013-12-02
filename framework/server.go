@@ -26,13 +26,13 @@ import (
 	_ "github.com/bmizerany/pq"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/kylelemons/go-gypsy/yaml"
+	"html/template"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"runtime"
 	"strings"
-	"text/template"
 	"time"
 )
 
@@ -140,7 +140,7 @@ func parseTemplates() {
 		pt, err := template.New("dummy").Delims("<%", "%>").Funcs(fnm).ParseFiles(templateFiles...)
 		parsedTemplate = pt
 		if err != nil {
-			log.Print(err)
+			log.Printf("** TEMPLATE PARSE ERROR: %v", err)
 		}
 	}
 }
@@ -362,10 +362,19 @@ func Route(rcfg RouteConfig) {
 						}
 						handlerResults.View["global"] = global
 					}
+
+					defer func() {
+						if err := recover(); err != nil {
+							log.Print(err)
+							parseTemplates() // parse templates again so we can throw any errors
+							return
+						}
+					}()
 					err = parsedTemplate.ExecuteTemplate(w, templateFilename, handlerResults.View)
 					if err != nil {
-						log.Print(err)
+						log.Printf("** TEMPLATE EXECUTION ERROR: %v", err)
 					}
+
 				}
 			}
 
