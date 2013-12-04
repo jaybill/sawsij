@@ -5,7 +5,7 @@
   <script type="text/javascript" src="https://www.google.com/jsapi"></script>
   <script src="/static/js/sawsij.js"></script>  
   <! -- Per page scripts -->
-  <% if eq .global.url "/admin" %>
+  <% if equal .global.url "/admin" %>
   <script src="/static/js/admin-dashboard.js"></script>  
   <% end %>
   </body>

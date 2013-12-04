@@ -23,7 +23,7 @@
     </div>
       <ul class="nav navbar-nav navbar-right">
       <% if .global.user %>  
-        <% if eq .global.user.Role .global.roles.admin %>  
+        <% if equal .global.user.Role .global.roles.admin %>  
         <li><a href="/admin">Admin</a></li>
         <% end %>              
       <li><p class="navbar-text">Logged in as <strong><% .global.user.Username %></strong></p></li>

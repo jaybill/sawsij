@@ -152,6 +152,10 @@ func UserAdminEditHandler(r *http.Request, a *framework.AppScope, rs *framework.
 		user.FullName = &fn
 		user.Email = r.FormValue("Email")
 
+		tRole := r.FormValue("Role")
+		tt, _ := strconv.Atoi(tRole)
+		user.Role = int64(tt)
+
 		errors := user.GetValidationErrors(a)
 
 		// Password validation has to be done in the handler because the model doesn't know about the confirmation field
