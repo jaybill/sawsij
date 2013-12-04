@@ -23,8 +23,8 @@
       <a class="navbar-brand" href="/admin">{{.name}} Admin</a>      
     </div>
     <ul class="nav navbar-nav">      
-      <li <% if eq .global.url "/admin" %>class="active"<% end %>><a href="/admin">Dashboard</a></li>   
-      <li <% if eq .global.url "/admin/users" %>class="active"<% end %>><a href="/admin/users">Users</a></li>
+      <li <% if equal .global.url "/admin" %>class="active"<% end %>><a href="/admin">Dashboard</a></li>   
+      <li <% if equal .global.url "/admin/users" %>class="active"<% end %>><a href="/admin/users">Users</a></li>
     </ul>
     <ul class="nav navbar-nav navbar-right"> 
       <li><p class="navbar-text">Logged in as <strong><% .global.user.Username %></strong></p></li>

@@ -91,7 +91,7 @@ func GetFuncMap() (fnm template.FuncMap) {
 	fnm["dateformat"] = DateFormat
 	fnm["markdown"] = MarkDown
 	fnm["round"] = Round
-	//fnm["eq"] = Compare // removed because this is now included in the template package
-	// fnm["ne"] = NotEqual // removed because this is now included in the template package
+	fnm["equal"] = Compare
+	fnm["notequal"] = NotEqual
 	return
 }
