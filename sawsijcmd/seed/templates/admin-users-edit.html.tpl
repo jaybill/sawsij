@@ -28,7 +28,7 @@
       <select name="Role" id="role" class="form-control" >
         <% $cur_role := .user.Role %>
         <% range $name,$val := .roles%>
-          <option <% if eq $val $cur_role %>selected="selected" <% end %> value="<% $val %>"><% $name %></option>
+          <option <% if equal $val $cur_role %>selected="selected" <% end %> value="<% $val %>"><% $name %></option>
         <% end %>
       </select>      
       </div>
