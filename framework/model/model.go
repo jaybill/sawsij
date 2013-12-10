@@ -44,6 +44,7 @@ import (
 // The Queries interface describes the functions needed for a specific database platform. All these functions will return strings
 // with template database queries to be used by the model package.
 type Queries interface {
+	TableCount() string
 	Update() string
 	Fetch() string
 	FetchAllSelect() string
