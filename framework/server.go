@@ -467,41 +467,50 @@ func Configure(as *AppSetup, basePath string) (a *AppScope, err error) {
 		if err == nil {
 
 			for _, schema := range allSchemas {
-				// TODO Remove hardcoded sql string, replace with driver based lookup (issue #11)
-				query := fmt.Sprintf(appScope.Db.GetQueries().DbVersion(), schema.Name)
-				row := db.QueryRow(query)
-				var dbversion int64 = 0
 
-				err = row.Scan(&dbversion)
+				// Count the tables in the schema. If it's empty, make the dbversion 0.
+				q := fmt.Sprintf(appScope.Db.GetQueries().TableCount(), schema.Name)
+				r := db.QueryRow(q)
+				var tc int64 = 0
+				err = r.Scan(&tc)
 				if err != nil {
 					log.Fatal(err)
-				} else {
-					log.Printf("Schema: %v App: %v Db: %v", schema.Name, schema.Version, dbversion)
-					if schema.Version != dbversion {
+				}
+				var dbversion int64 = 0
 
-						if migrateAndExit {
-							dbs := &model.DbSetup{Db: db}
-							dbs.GetQueries = appScope.Db.GetQueries
-							t := &model.Table{Db: dbs, Schema: schema.Name}
-							log.Printf("Running database migration on %q", schema.Name)
-							for i := dbversion + 1; i <= schema.Version; i++ {
-								scriptfile := fmt.Sprintf("%v/sql/changes/%v_%v_%04d.sql", appScope.BasePath, driver, schema.Name, i)
-								log.Printf("Running script %v", scriptfile)
+				if tc != 0 {
+					query := fmt.Sprintf(appScope.Db.GetQueries().DbVersion(), schema.Name)
+					row := db.QueryRow(query)
+					err = row.Scan(&dbversion)
+					if err != nil {
+						log.Fatal(err)
+					}
+				}
 
-								err = model.RunScript(db, scriptfile)
-								if err != nil {
-									log.Fatal(err)
-								}
-								dbv := &model.SawsijDbVersion{VersionId: i, RanOn: time.Now()}
-								t.Insert(dbv)
-								log.Printf("Inserted record: %+v", dbv)
+				log.Printf("Schema: %v App: %v Db: %v", schema.Name, schema.Version, dbversion)
+				if schema.Version != dbversion {
 
+					if migrateAndExit {
+						dbs := &model.DbSetup{Db: db}
+						dbs.GetQueries = appScope.Db.GetQueries
+						t := &model.Table{Db: dbs, Schema: schema.Name}
+						log.Printf("Running database migration on %q", schema.Name)
+						for i := dbversion + 1; i <= schema.Version; i++ {
+							scriptfile := fmt.Sprintf("%v/sql/changes/%v_%v_%04d.sql", appScope.BasePath, driver, schema.Name, i)
+							log.Printf("Running script %v", scriptfile)
+
+							err = model.RunScript(db, scriptfile)
+							if err != nil {
+								log.Fatal(err)
 							}
+							dbv := &model.SawsijDbVersion{VersionId: i, RanOn: time.Now()}
+							t.Insert(dbv)
+							log.Printf("Inserted record: %+v", dbv)
 
-						} else {
-							log.Fatal("Schema/App version mismatch. Please run migrate to update the database.")
 						}
 
+					} else {
+						log.Fatal("Schema/App version mismatch. Please run migrate to update the database.")
 					}
 
 				}

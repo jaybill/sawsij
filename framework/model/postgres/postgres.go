@@ -14,6 +14,10 @@ func GetQueries() (q model.Queries) {
 	return
 }
 
+func (q *Queries) TableCount() string {
+	return "SELECT COUNT(*) AS TOTAL FROM PG_TABLES WHERE SCHEMANAME='%v';"
+}
+
 func (q *Queries) Fetch() string {
 	return "SELECT %v FROM %v WHERE id=%d"
 }

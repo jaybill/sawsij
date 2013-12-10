@@ -15,6 +15,10 @@ func GetQueries() (q model.Queries) {
 	return
 }
 
+func (q *Queries) TableCount() string {
+	return "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '%d';"
+}
+
 func (q *Queries) Fetch() string {
 	return "SELECT %v FROM %v WHERE id=%d"
 }
