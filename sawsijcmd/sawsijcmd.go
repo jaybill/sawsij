@@ -24,6 +24,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"text/template"
 )
 
 var env map[string]string
@@ -352,7 +353,7 @@ func new() {
 			}
 
 			fmt.Printf("Parsing template %v\n", t.Name)
-			err = framework.ParseTemplate(string(tpla), config, t.Dest)
+			err = parseCodeTemplate(string(tpla), config, t.Dest)
 
 			if err != nil {
 				fmt.Println(err)
@@ -721,7 +722,7 @@ func factory() {
 				bomb(err)
 			}
 
-			err = framework.ParseTemplate(t, tV, tpl.Dest)
+			err = parseCodeTemplate(t, tV, tpl.Dest)
 			fmt.Printf("%v\n", tpl.Dest)
 
 			if err != nil {
@@ -744,6 +745,40 @@ func factory() {
 		bomb(err)
 	}
 
+}
+
+// ParseTemplate uses t as a template (not a filename, but an actual template) applies the data in d to it, and writes it out to a file called o.
+func parseCodeTemplate(t string, d interface{}, o string) (err error) {
+
+	fnm := getFuncMap()
+
+	tmpl, err := template.New("tpl").Funcs(fnm).Parse(t)
+	if err != nil {
+		return err
+	}
+
+	f, err := os.Create(o)
+	if err != nil {
+		return err
+	}
+
+	err = tmpl.Execute(f, d)
+	if err != nil {
+		return err
+	}
+	return
+}
+
+// GetFuncMap returns a template.FuncMap which will be passed to the template parser.
+func getFuncMap() (fnm template.FuncMap) {
+	fnm = make(template.FuncMap)
+	fnm["truncate"] = framework.Truncate
+	fnm["dateformat"] = framework.DateFormat
+	fnm["markdown"] = framework.MarkDown
+	fnm["round"] = framework.Round
+	fnm["equal"] = framework.Compare
+	fnm["notequal"] = framework.NotEqual
+	return
 }
 
 func bomb(err error) {
