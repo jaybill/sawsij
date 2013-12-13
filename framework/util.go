@@ -6,7 +6,6 @@ package framework
 
 import (
 	"archive/zip"
-
 	"bufio"
 	"code.google.com/p/go.crypto/bcrypt"
 	"crypto/md5"
