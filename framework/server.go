@@ -129,7 +129,7 @@ func parseTemplates() {
 			}
 		}
 	}
-	log.Printf("Templates: %v", templateFiles)
+
 	if len(templateFiles) > 0 {
 		fnm := GetFuncMap()
 		if len(appScope.Setup.TemplateFuncs) > 0 {
@@ -204,7 +204,6 @@ func Route(rcfg RouteConfig) {
 	var slashRoute string = ""
 	if p := strings.LastIndex(rcfg.Pattern, "/"); p != len(rcfg.Pattern)-1 {
 		slashRoute = rcfg.Pattern + "/"
-		log.Printf("Specified %q, implying %q", rcfg.Pattern, slashRoute)
 	}
 
 	fn := func(w http.ResponseWriter, r *http.Request) {
