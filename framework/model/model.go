@@ -250,6 +250,32 @@ type Query struct {
 	Offset int
 }
 
+// FetchByFields accepts a reference to a struct (generally "blank", though it doesn't matter) and a map of fields and values.
+// It will construct a where clause (using " and ") and run the query, returning up to the number of rows in "limit" if limit
+// is greater than zero.
+func (m *Table) FetchByFields(data interface{}, fields map[string]interface{}, limit int) (ents []interface{}, err error) {
+
+	count := 0
+	wparts := make([]string, len(fields))
+	params := make([]interface{}, len(fields))
+	for field, val := range fields {
+		wparts[count] = fmt.Sprintf("%v=%v", MakeDbName(field), m.Db.GetQueries().P(count+1))
+		params[count] = val
+		count++
+	}
+	q := Query{}
+
+	q.Where = strings.Join(wparts, " AND ")
+
+	if limit > 0 {
+		q.Limit = limit
+	}
+
+	ents, err = m.FetchAll(data, q, params)
+
+	return
+}
+
 // FetchAll accepts a reference to a struct (generally "blank", though it doesn't matter), a Query and a set of query arguments and returns a set of rows that match
 // the query.
 func (m *Table) FetchAll(data interface{}, q Query, args ...interface{}) (ents []interface{}, err error) {
