@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-/* Provides a command line tool for running sawsij applications. Useful for development, it will automatically compile application source and start the app. If the source changes, it will automatically recompile and restart.
+/* Provides a command line tool for running sawsij applications. */
 
+/*Useful for development, it will automatically compile application source and start the app. If the source changes, it will automatically recompile and restart.
+makesawsij takes one optional argument, which is the base directory of the sawsij application. If this argument is absent, it will assume the current directory.
 Check out http://sawsij.com for more information and documentation.
 
 */
