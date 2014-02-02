@@ -263,6 +263,8 @@ func (m *Table) FetchByFields(data interface{}, fields map[string]interface{}, l
 		params[count] = val
 		count++
 	}
+
+	log.Printf("Params are %+v", params)
 	q := Query{}
 
 	q.Where = strings.Join(wparts, " AND ")
@@ -271,7 +273,7 @@ func (m *Table) FetchByFields(data interface{}, fields map[string]interface{}, l
 		q.Limit = limit
 	}
 
-	ents, err = m.FetchAll(data, q, params)
+	ents, err = m.FetchAll(data, q, params...)
 
 	return
 }
