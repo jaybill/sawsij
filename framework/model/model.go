@@ -195,8 +195,8 @@ func (m *Table) Delete(data interface{}) (err error) {
 	return
 }
 
-// Delete takes a pointer to a struct and deletes the row where the id in the table is the Id of the struct.
-// Note that you don't need to have acquired this struct from a row, passing in a pointer to something like {Id: 4} will totally work.
+// Delete where takes a pointer to a struct and a where clause and deletes from the table that matches the struct using the
+// supplied where clause
 func (m *Table) DeleteWhere(data interface{}, whereClause string) (err error) {
 	rowInfo := m.getRowInfo(data, false)
 
@@ -253,7 +253,7 @@ type Query struct {
 // FetchByFields accepts a reference to a struct (generally "blank", though it doesn't matter) and a map of fields and values.
 // It will construct a where clause (using " and ") and run the query, returning up to the number of rows in "limit" if limit
 // is greater than zero.
-func (m *Table) FetchByFields(data interface{}, fields map[string]interface{}, limit int) (ents []interface{}, err error) {
+func (m *Table) FetchByFields(data interface{}, fields map[string]interface{}, order string, limit int) (ents []interface{}, err error) {
 
 	count := 0
 	wparts := make([]string, len(fields))
@@ -266,7 +266,7 @@ func (m *Table) FetchByFields(data interface{}, fields map[string]interface{}, l
 
 	log.Printf("Params are %+v", params)
 	q := Query{}
-
+	q.Order = order
 	q.Where = strings.Join(wparts, " AND ")
 
 	if limit > 0 {
