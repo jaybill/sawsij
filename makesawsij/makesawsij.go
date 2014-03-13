@@ -149,11 +149,14 @@ func getFileList(watchdir string) (filemap map[string]string, err error) {
 		if !info.IsDir() {
 
 			file, err := os.Open(path)
-			doe(err)
-			h := md5.New()
-			io.Copy(h, file)
-			checksum := fmt.Sprintf("%x", h.Sum(nil))
-			filemap[path] = checksum
+			if err == nil {
+				h := md5.New()
+				io.Copy(h, file)
+				checksum := fmt.Sprintf("%x", h.Sum(nil))
+				filemap[path] = checksum
+			} else {
+				fmt.Println(err.Error)
+			}
 		}
 		return
 	}
