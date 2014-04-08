@@ -17,7 +17,6 @@ import (
 	"bitbucket.org/jaybill/sawsij/framework/model"
 	"bitbucket.org/jaybill/sawsij/framework/model/mysql"
 	"bitbucket.org/jaybill/sawsij/framework/model/postgres"
-	"code.google.com/p/gorilla/sessions"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -25,6 +24,8 @@ import (
 	"fmt"
 	_ "github.com/bmizerany/pq"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/gorilla/context"
+	"github.com/gorilla/sessions"
 	"github.com/kylelemons/go-gypsy/yaml"
 	"html/template"
 	"io"
@@ -571,5 +572,5 @@ func Run() {
 	}
 
 	log.Printf("Listening on %v", listen)
-	log.Fatal(http.ListenAndServe(listen, nil))
+	log.Fatal(http.ListenAndServe(listen, context.ClearHandler(http.DefaultServeMux)))
 }
