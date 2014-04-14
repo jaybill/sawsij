@@ -26,6 +26,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/context"
 	"github.com/gorilla/sessions"
+	"github.com/jaybill/oauth"
 	"github.com/kylelemons/go-gypsy/yaml"
 	"html/template"
 	"io"
@@ -259,13 +260,11 @@ func Route(rcfg RouteConfig) {
 		} else {
 			// Everything is ok. Proceed normally.
 			reqScope := RequestScope{Session: session}
-
 			switch rcfg.ParamsAs {
 			case PARAMS_ARRAY:
 				reqScope.UrlParamArray = GetUrlParamsArray(rcfg.Pattern, r.URL.Path)
 			default:
 				reqScope.UrlParamMap = GetUrlParamsMap(rcfg.Pattern, r.URL.Path)
-
 			}
 
 			global["user"] = session.Values["user"]
@@ -277,7 +276,8 @@ func Route(rcfg RouteConfig) {
 
 			// Call the supplied handler function and get the results back.
 			handlerResults, err = rcfg.Handler(r, appScope, &reqScope)
-			reqScope.Session.Save(r, w)
+			session.Save(r, w)
+
 		}
 
 		if handlerResults.Redirect != "" {
