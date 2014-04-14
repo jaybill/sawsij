@@ -26,7 +26,6 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/context"
 	"github.com/gorilla/sessions"
-	"github.com/jaybill/oauth"
 	"github.com/kylelemons/go-gypsy/yaml"
 	"html/template"
 	"io"
