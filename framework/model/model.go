@@ -331,6 +331,15 @@ func (m *Table) FetchAll(data interface{}, q Query, args ...interface{}) (ents [
 	return
 }
 
+// Count takes a reference to a struct representing a table (doesn't need to be a "real" one) and a where clause and returns the number of rows matching the clause.
+func (m *Table) Count(data interface{}, whereClause string) (c int64, err error) {
+	rowInfo := m.getRowInfo(data, true)
+	cq := fmt.Sprintf("select count(*) from %v where %v", rowInfo.TableName, whereClause)
+	c = 0
+	err = m.Db.Db.QueryRow(cq).Scan(&c)
+	return
+}
+
 type forDb struct {
 	Id           interface{}
 	IdIndex      int
